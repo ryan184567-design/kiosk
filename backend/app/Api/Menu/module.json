@@ -1,0 +1,21 @@
+{
+    "code": "menu",
+    "name": "選單管理",
+    "description": "側邊欄選單維護",
+    "is_core": true,
+    "sort": 4,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "menus",
+            "title": "選單管理",
+            "subtitle": "側邊欄選單維護",
+            "icon": "Menu",
+            "path": "/menus",
+            "permission_code": "api.menu.index",
+            "group": "group-system",
+            "sort": 0
+        }
+    ]
+}

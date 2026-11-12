@@ -1,0 +1,21 @@
+{
+    "code": "portal",
+    "name": "端口管理",
+    "description": "登入端口與訪客瀏覽設定",
+    "is_core": true,
+    "sort": 8,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "portals",
+            "title": "端口管理",
+            "subtitle": "登入端口與訪客瀏覽設定",
+            "icon": "Switch",
+            "path": "/portals",
+            "permission_code": "api.portal.index",
+            "group": "group-system",
+            "sort": 4
+        }
+    ]
+}

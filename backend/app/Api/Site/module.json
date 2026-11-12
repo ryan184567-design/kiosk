@@ -1,0 +1,9 @@
+{
+    "code": "site",
+    "name": "站點設定",
+    "description": "子站執行期設定讀取（GET /api/site/config）",
+    "is_core": true,
+    "sort": 1,
+    "depends": [],
+    "menus": []
+}

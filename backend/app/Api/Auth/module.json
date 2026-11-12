@@ -1,0 +1,9 @@
+{
+    "code": "auth",
+    "name": "登入/驗證",
+    "description": "登入、登出、個人資料自助服務",
+    "is_core": true,
+    "sort": 0,
+    "depends": [],
+    "menus": []
+}

@@ -1,0 +1,21 @@
+{
+    "code": "dictionary",
+    "name": "資料字典",
+    "description": "可管理的下拉選項",
+    "is_core": true,
+    "sort": 6,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "dictionaries",
+            "title": "資料字典",
+            "subtitle": "可管理的下拉選項",
+            "icon": "List",
+            "path": "/dictionaries",
+            "permission_code": "api.dictionary.index",
+            "group": "group-system",
+            "sort": 1
+        }
+    ]
+}

@@ -1,0 +1,21 @@
+{
+    "code": "system_config",
+    "name": "系統環境配置",
+    "description": "頁面設置等站台參數",
+    "is_core": true,
+    "sort": 5,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "system-config",
+            "title": "系統環境配置",
+            "subtitle": "頁面設置等站台參數",
+            "icon": "Tools",
+            "path": "/system-config",
+            "permission_code": "api.system_config.index",
+            "group": "group-system",
+            "sort": 2
+        }
+    ]
+}

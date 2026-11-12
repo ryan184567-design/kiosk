@@ -1,0 +1,21 @@
+{
+    "code": "user",
+    "name": "使用者管理",
+    "description": "帳號建立與端口授權",
+    "is_core": true,
+    "sort": 3,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "users",
+            "title": "使用者管理",
+            "subtitle": "帳號建立與端口授權",
+            "icon": "User",
+            "path": "/users",
+            "permission_code": "api.user.index",
+            "group": "group-account",
+            "sort": 0
+        }
+    ]
+}

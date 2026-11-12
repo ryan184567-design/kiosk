@@ -1,0 +1,21 @@
+{
+    "code": "role",
+    "name": "角色管理",
+    "description": "角色與權限碼指派",
+    "is_core": true,
+    "sort": 2,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "roles",
+            "title": "角色管理",
+            "subtitle": "角色與權限碼指派",
+            "icon": "Lock",
+            "path": "/roles",
+            "permission_code": "api.role.index",
+            "group": "group-account",
+            "sort": 1
+        }
+    ]
+}

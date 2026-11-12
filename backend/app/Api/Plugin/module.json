@@ -1,0 +1,21 @@
+{
+    "code": "plugin",
+    "name": "插件管理",
+    "description": "AD／SSO 等對接插件",
+    "is_core": true,
+    "sort": 7,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "plugins",
+            "title": "插件管理",
+            "subtitle": "AD／SSO 等對接插件",
+            "icon": "Connection",
+            "path": "/plugins",
+            "permission_code": "api.plugin.index",
+            "group": "group-system",
+            "sort": 3
+        }
+    ]
+}
