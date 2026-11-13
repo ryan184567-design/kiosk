@@ -124,4 +124,8 @@ return [
         'item_value_exists' => '此字典底下該值已存在：:value',
     ],
 
+    'data_setting' => [
+        'doorplate_exists' => '門牌號碼已存在'
+    ],
+
 ];

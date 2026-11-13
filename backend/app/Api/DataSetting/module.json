@@ -1,0 +1,43 @@
+{
+    "code": "data_setting",
+    "name": "基本資料設定",
+    "description": "設定門牌、樓層、棟別資料",
+    "is_core": false,
+    "sort": 99,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "building",
+            "title": "棟別設定",
+            "subtitle": "設定棟別資料",
+            "icon": "Menu",
+            "path": "/data_setting/building",
+            "permission_code": "api.data_setting.building",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "floor",
+            "title": "樓別設定",
+            "subtitle": "設定樓層資料",
+            "icon": "Menu",
+            "path": "/data_setting/floor",
+            "permission_code": "api.data_setting.floor",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "doorplate",
+            "title": "門牌設定",
+            "subtitle": "設定門牌資料",
+            "icon": "Menu",
+            "path": "/data_setting/doorplate",
+            "permission_code": "api.data_setting.doorplate",
+            "group": "group-account",
+            "sort": 0
+        }
+    ]
+}
