@@ -101,7 +101,14 @@ Zend Engine v4.2.29, Copyright (c) Zend Technologies
 ```powershell
 composer install
 npm install
+
+# 建置前端 SPA（編譯產物不進版控，新環境必做）
+npm run hq:build      # 主站後台 → public/hq-assets
+npm run admin:build   # 子站後台 → public/admin-assets
+npm run vue:build     # 子站前台 → public/vue
 ```
+
+> ⚠ 沒有執行上面的建置，`/hq`、`/admin` 會直接回 **404**（`HqSpaController`／`AdminSpaController` 找不到 `public/hq-assets/index.html`、`public/admin-assets/index.html` 時會 `abort(404)`），路由本身並沒有問題。各 SPA 的建置對照見 4.2。
 
 ### 3.3 建立 `.env` 並填入必填值
 
@@ -134,7 +141,14 @@ SITE_DELEGATION_ROOT_PASSWORD= # 子站系統管理員密碼（必填）
 
 ```powershell
 php artisan key:generate --ansi
+
+# 產生 JWT_SITE_SECRET、JWT_HQ_SECRET 並寫入 .env（兩把互相獨立；只補空值，已有值不動）
+php artisan jwt:secret
+# 預期：已寫入 .env：JWT_SITE_SECRET、JWT_HQ_SECRET
+# 要全部重產（既有 token 全部失效）：php artisan jwt:secret --force
 ```
+
+> ⚠ `JWT_SITE_SECRET`、`JWT_HQ_SECRET` 留空時，登入看似正常，但之後每個需要驗證的 API 都會丟出 `Key material must not be empty`，前端顯示「無法取得個人資料」。看到這個錯誤先檢查這兩個值（log 在 `storage/logs/laravel.log`）。
 
 ### 3.5 建置資料庫（順序不可顛倒）
 
@@ -155,6 +169,8 @@ php artisan --version           # 預期：Laravel Framework 12.68.0
 composer check-platform-reqs    # 預期：全部 pass
 php artisan route:list --ansi   # 預期：列出 80+ 筆路由（含 api/ping、api/auth/login）
 php artisan migrate:status --path=database/hq/migrations --ansi
+Test-Path public/hq-assets/index.html     # 預期：True（False 代表 3.2 的 SPA 建置沒做）
+Test-Path public/admin-assets/index.html  # 預期：True
 ```
 
 也可用 `php artisan list` 確認自訂指令都在（`site:`、`module:`、`plugin:`、`vue:`、`permission:`、`swagger:`、`jwt:sessions:prune`）。
@@ -477,5 +493,6 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Auth
 2. **登入後 500 但首頁正常**：典型的 `site_current` 連線或 `env()` 問題（DEVELOP.MD 6.4 第 4 點）。
 3. **畫面空白、console 有 CSP violation**：屬嚴格 CSP 的預期行為，先看 DEVELOP.MD 4.2.1（`:style` 動態綁定是常見卡點）。
 4. **改設定沒生效**：`php artisan optimize:clear`。
-5. **查不到原因**：DEVELOP.MD 內每個章節都有「實際踩過的坑」與修正紀錄，多數錯誤已在其中留下症狀與處理方式。
+5. **`/hq` 或 `/admin` 顯示 404**：先檢查 `public/hq-assets/index.html`、`public/admin-assets/index.html` 是否存在；不存在就是 SPA 尚未建置，執行 `npm run hq:build`／`npm run admin:build`（見 3.2、4.2）。
+6. **查不到原因**：DEVELOP.MD 內每個章節都有「實際踩過的坑」與修正紀錄，多數錯誤已在其中留下症狀與處理方式。
 
