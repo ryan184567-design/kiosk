@@ -10,7 +10,8 @@ use App\Api\DataSetting\Models\Doorplate;
 use App\Api\DataSetting\Models\Building;
 use App\Api\DataSetting\Models\Floor;
 use App\Api\DataSetting\Services\DataSettingService;
-
+use App\Support\Api\ErrorCode;
+use RuntimeException;
 class DataSettingController extends BaseApiController
 {
     public function index(Request $request)
@@ -62,10 +63,17 @@ class DataSettingController extends BaseApiController
         return $this->success($this->presentDoorplate($doorplate), 201);
     }
 
-    public function deleteDoorplate (request $request)
+    public function deleteDoorplate (request $request, DataSettingService $dataSetting)
     {
-        $Data = Doorplate::find($request->id);
-        $Data->delete();
+        $model = Doorplate::findOrFail($request->id);
+
+        try {
+            $dataSetting->deleteDoorplate($model);
+        } catch (RuntimeException $e) {
+            return $this->fail(ErrorCode::VALIDATION_FAILED, $e->getMessage());
+        }
+
+        return $this->success();
     }
 
     public function floor(Request $request)

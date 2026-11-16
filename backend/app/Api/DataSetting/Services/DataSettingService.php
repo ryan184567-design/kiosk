@@ -90,4 +90,9 @@ class DataSettingService
 
         return $doorplateData;
     }
+
+    public function deleteDoorplate(Doorplate $doorplate): void
+    {
+        $doorplate->delete();
+    }
 }
