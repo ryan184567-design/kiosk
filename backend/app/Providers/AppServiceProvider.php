@@ -9,7 +9,16 @@ Description: 應用程式啟動註冊：Vite CSP nonce（見 README 4.2.1 第 3 
 
 namespace App\Providers;
 
+use App\Support\Database\Console\HqAwareMigrateCommand;
+use App\Support\Database\Console\HqAwareResetCommand;
+use App\Support\Database\Console\HqAwareRollbackCommand;
+use App\Support\Database\Console\HqAwareStatusCommand;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Database\Console\Migrations\MigrateCommand;
+use Illuminate\Database\Console\Migrations\ResetCommand;
+use Illuminate\Database\Console\Migrations\RollbackCommand;
+use Illuminate\Database\Console\Migrations\StatusCommand;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
@@ -22,7 +31,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // 防呆：多站模式下裸跑 migrate 系列指令自動改用主站 migration 路徑，
+        // 見 App\Support\Database\Console\UsesHqMigrationPath。用 extend() 而非重新
+        // singleton()：這幾個指令由延遲載入的 MigrationServiceProvider 註冊，直接
+        // 覆寫綁定會在它載入時被蓋回去，extend() 則不受載入順序影響。
+        $this->app->extend(MigrateCommand::class, fn ($c, $app) => new HqAwareMigrateCommand($app['migrator'], $app[Dispatcher::class]));
+        $this->app->extend(RollbackCommand::class, fn ($c, $app) => new HqAwareRollbackCommand($app['migrator']));
+        $this->app->extend(ResetCommand::class, fn ($c, $app) => new HqAwareResetCommand($app['migrator']));
+        $this->app->extend(StatusCommand::class, fn ($c, $app) => new HqAwareStatusCommand($app['migrator']));
     }
 
     /**

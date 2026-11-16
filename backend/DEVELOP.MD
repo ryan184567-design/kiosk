@@ -923,6 +923,12 @@ public/
 5. MySQL/MariaDB 資料表儲存引擎統一使用 `InnoDB`，禁止使用 `MyISAM`。
 6. `.env` 必須設定 `DB_ENGINE=InnoDB`，新建表須支援交易、行級鎖與外鍵。
 7. 初始化數據請建立 seed 檔案，不允許直接在 migration 中直接寫入，必須考慮重複執行是不可重複插入
+8. **標準指令防呆（裸跑 `migrate`／`db:seed` 不會弄錯庫）**：專案有兩套結構——主站 `database/hq/migrations`、子站 `database/migrations`——但 Laravel 預設只認 `database/migrations`。為避免開發者（或 `migrate:fresh --seed`）把子站表建進主站庫，標準指令改為依模式選擇目標：
+   - **migrate 系列**：`App\Support\Database\Console\Hq*Command`（`migrate`、`migrate:status`、`migrate:rollback`、`migrate:reset` 的子類別，共用 `UsesHqMigrationPath`，於 `AppServiceProvider::register()` 以 `extend()` 取代）。條件「多站模式（`multisite.enabled`）且沒帶 `--path` 且沒帶 `--database`」時，`getMigrationPaths()` 回傳 `database/hq/migrations`。`migrate:fresh`、`migrate:refresh` 內部呼叫上述指令，自動一併生效。
+   - **db:seed**：`DatabaseSeeder::run()` 依「多站模式且沒帶 `--database`」選擇 `HqDatabaseSeeder`，否則 `SiteBaselineSeeder`。
+   - **明確指定一律照辦**：帶 `--path`／`--database`／`--class` 時完全不介入，因此 `site:migrate`、`SiteProvisioningService` 內部呼叫（都帶 `--database=site_current`＋明確路徑）行為不變；舊的完整寫法（`migrate --path=database/hq/migrations`）仍可用。單站模式（`MULTI_SITE_ENABLED=false`，部署包）沒有主站，維持 Laravel 預設，部署文件的 `php artisan migrate` 照舊。
+   - 使用 `extend()` 而非重新 `singleton()`：這些指令由延遲載入的 `MigrationServiceProvider` 註冊，直接覆寫綁定會在其載入時被蓋回去。
+   - 驗證方式：路徑解析以反射驗證過（多站裸跑／帶 `--path`／帶 `--database`／單站四種情境，四個指令皆符合預期；`DatabaseSeeder` 三種情境皆選到預期的 seeder），**尚未在實際資料庫上完整跑過 `migrate:fresh --seed`**，需要時請在測試環境驗證一次。
 
 ## 14. 快取、佇列、排程規範
 1. Redis key 命名需帶前綴：project:module:scene:id。
@@ -1395,3 +1401,481 @@ php artisan jwt:sessions:prune --dry-run
     `File` 填實際檔名（不含路徑）；`Author` 固定填實際撰寫者；`Date` 為建立該檔案的日期（`YYYY-MM-DD`），既有檔案回補時填實際回補當下日期，不用回頭猜原始建立時間；`Description` 一句話說明這個檔案的用途，不是重複檔名。這段 Header 與檔案內原有的功能/邏輯註解（例如 Controller 開頭說明某段設計考量的 `//` 註解）是兩件事，**不互相取代**——Header 只負責「這是誰在什麼時候建的、做什麼用」，原有的邏輯性註解照舊保留在 Header 之後。
 17. **Swagger 標註（`@api-description` 等）必須自成一體，禁止用「見 README X.X」這種引用式寫法把讀者導去別的文件才能看懂**——Swagger 文件本身就是開發時唯一要參照的依據，工程師不該還要跳去翻 README 才知道一支 API 在幹嘛。撰寫時直接把該接口的實際邏輯、行為、需注意事項寫清楚：用到的字典要把字典名稱與每個選項的意義都列出來（`@api-dict`）、入參的驗證規則與限制要講明白、回傳值每個欄位的意義與可能情況（例如某欄位在什麼狀況下會是 null）都要交代。README 仍然是系統設計的權威文件，但那是給理解整體架構用的，不是給「這支 API 到底怎麼用」這種開發當下要查的問題用——這兩者服務不同的讀者情境，不能互相取代，見 12 節既有規則的實際延伸。
 
+---
+
+## 20. 開發中手動調整配置詳解（對應 README 第 9 節）
+
+> 本章是 README 第 9、10 節的完整版（README 只留精簡指引）。本章內「20.x／21.x」指本章小節；未特別標明的「第 N 節」「N.N」（如 3.2、4.4、第 7 節）是 README **精簡前的舊版節次**（開發約定＝現 README 第 3 節、命令＝第 4 節、常見任務＝第 5 節、前端＝第 6 節；舊版全文已移入本文件 22 章或併入上述章節），其餘編號為本文件章節。
+
+`module:make`、`plugin:make`、`vue:page:make` 只產生**骨架**，下列事項都得人工補。本節依「想做什麼」查表，每項都寫明：**改哪個檔 → 改完要跑什麼 → 常見踩坑**。
+
+> 名詞：本專案的「**端口**」= `portal`（登入入口＋角色／選單的分組，如 `admin`），**不是** TCP port；TCP port（dev server 埠號）見 20.6。
+
+### 20.0 速查：想做什麼 → 改哪裡
+
+| 想做什麼 | 要改的檔案／位置 | 改完要跑 | 小節 |
+| --- | --- | --- | --- |
+| 新增一個功能模塊 | `module:make` 後補 Controller／`routes/api.php`／`module.json` | `permission:sync-api`、`swagger:generate`，主站開通模塊 | 20.1 |
+| 左側選單加一項 | 模塊的 `module.json` 的 `menus`，**加** 前端 `router/index.js` ＋頁面 `.vue` | 見 20.2 重新套用選單 | 20.2 |
+| 左側選單加「分組」 | `SiteBaselineSeeder::seedAdminMenu()` 的 `$groups` | 重跑 baseline seed | 20.2 |
+| 新增端口（portal） | `portals` 資料列＋該端口的角色／選單／前端 SPA | 見 20.3 | 20.3 |
+| 權限（誰能呼叫哪支 API） | Controller 的 `@api-*` 註解＋路由 `permission.api:{code}` | `permission:sync-api` → 後台「角色管理」勾選 | 20.4 |
+| 模塊依賴（A 模塊要先有 B） | `module.json` 的 `depends` | 主站重新開通 | 20.5 |
+| 套件依賴（composer／npm） | `composer.json`／`package.json` | `composer install`／`npm install` | 20.5 |
+| 改 dev server／serve 的 TCP port | `vite.*.config.js`、`.env` 的 `VUE_DEV_API_PROXY`、`--port=` | 重啟 dev server | 20.6 |
+| 新增系統設定項／字典 | `SiteBaselineSeeder` 的 `seedSiteBasicConfig()` 等 | 對既有站重跑 seed | 20.7 |
+| 新增 `.env`／config 設定 | `.env.example`＋`config/*.php` | `optimize:clear` | 20.8 |
+| 新增錯誤碼／文案 | `ErrorCode`、`ErrorCatalog`、`lang/zh_TW/*.php` | — | 20.9 |
+| 啟用／登記插件 | `config/plugins.php` | 後台插件管理頁啟用 | 20.10 |
+
+> **共通陷阱**：`SiteBaselineSeeder` 只在「建新站」或「手動重跑」時執行。你改了 seeder，**既有子站不會自動套用**：
+> ```powershell
+> php artisan site:migrate --all --seed=Database\Seeders\SiteBaselineSeeder --ansi   # 全部站
+> php artisan site:migrate 1 --seed=Database\Seeders\SiteBaselineSeeder --ansi       # 只重跑 1 號站
+> ```
+> seeder 內多是 `updateOrCreate`，重跑不會重複建立，但會**覆蓋**你在後台手改過的同一列（例如選單標題、圖示），見 20.2。
+
+### 20.1 新增一個功能模塊（完整檢查清單）
+
+```powershell
+php artisan module:make order        # 互動問答會產生 module.json；加 --portal=vendor 則 Controller 名稱帶端口前綴
+```
+
+產生的檔案在 `app/Api/Order/`（`Controllers`、`Services`、`Models`、`routes/api.php`、`module.json`）。**骨架刻意只給最小內容，以下要手動補：**
+
+| # | 要做的事 | 說明 |
+| --- | --- | --- |
+| 1 | **補路由的認證與權限 middleware** | 骨架 `routes/api.php` 只有 `module:order`，**沒有登入驗證也沒有權限檢查**，等於任何人可呼叫。比照 `app/Api/Dictionary/routes/api.php` 補成下面寫法 |
+| 2 | **每個 Controller 方法加 `@api-*` 註解** | 沒有註解就不會被 `permission:sync-api` 掃到，也沒有 Swagger；缺少必填標註會**直接中斷**而非警告（見 4.4） |
+| 3 | **Model 放進自己的模塊** | `app/Api/Order/Models/`；migration 放 `database/migrations/`（子站公版），之後 `site:migrate --all` |
+| 4 | **檢查 `module.json`** | `is_core`、`depends`、`menus` 是否正確（見 20.2、20.5） |
+| 5 | **同步模塊清單** | `module:make` 會自動同步一次；之後改 `module.json` 要手動 `php artisan module:sync` |
+| 6 | **同步權限碼** | `php artisan permission:sync-api --site=1 --assign-admin=admin` |
+| 7 | **（非核心模塊）主站開通** | 主站後台「模塊管理」對要用的子站勾選；`is_core=false` 預設未開通，未開通時 API 回 `20016`、選單也不顯示 |
+| 8 | **前端頁面** | 見 20.2（路由＋頁面） |
+| 9 | **文案走語言包** | `lang/zh_TW/api.php`，不得硬編碼，見第 7 節 |
+
+路由標準寫法（middleware 順序：`module` → `jwt.auth` → `permission.api`，`permission.api` 一定要在 `jwt.auth` 之後）：
+
+```php
+Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(function () {
+    Route::middleware('permission.api:api.order.index')->get('/', [OrderController::class, 'index']);
+    Route::middleware('permission.api:api.order.store')->post('/', [OrderController::class, 'store']);
+});
+```
+
+> ⚠ **權限碼固定為 `api.{模塊代碼}.{Controller 方法名}`**（`PermissionSyncApiCommand::syncOne`）。路由寫的 `permission.api:api.order.store` 必須與 Controller 的方法名 `store` 完全一致；方法改名就要同步改路由，否則權限碼對不上，所有人（含管理員以外的角色）都會 403。
+> ⚠ `module_code` 必須與目錄名的 snake 形式一致（`OrderItem` → `order_item`），不一致 `module:sync` 直接報錯。
+> ⚠ Controller 內要被子站覆寫的 Service，用**方法參數注入**，不要用建構子注入（見第 7 節第 4 點）。
+
+### 20.2 左側選單（側邊欄）
+
+側邊欄資料來自 `menus` 資料表（**每個子站各一份**），不是前端寫死。要讓一個頁面出現在選單並能點進去，**三件事缺一不可**：
+
+**① 選單資料（資料庫）** — 有兩種來源，擇一：
+
+| 方式 | 適用 | 做法 |
+| --- | --- | --- |
+| **A. 寫在 `module.json`（建議）** | 屬於某個模塊的頁面 | 編輯 `app/Api/{Module}/module.json` 的 `menus`；模塊開通時自動 upsert 進該站 `menus` |
+| **B. 後台「選單管理」頁手動新增** | 臨時／單站調整 | 只影響當前站，不會進版控，換新站要重做 |
+
+`module.json` 的 `menus` 範例（欄位對應 `menus` 表）：
+
+```json
+"menus": [
+  {
+    "portal": "admin",            // 掛在哪個端口的側邊欄（portal_key，必須已存在於 portals 表）
+    "key": "orders",              // 同端口內唯一；upsert 的比對鍵（portal+key）
+    "title": "訂單管理",
+    "subtitle": "訂單查詢與處理",
+    "icon": "Tickets",            // Element Plus Icons 名稱，名稱錯誤則不顯示圖示（不報錯）
+    "path": "/orders",            // 必須與 ③ 的前端路由 path 完全一致（含開頭 /）
+    "permission_code": "api.order.index",   // 有此權限（或該模塊任一 web.* 權限）才看得到
+    "group": "group-system",      // 掛在哪個分組；填 null 則為頂層節點
+    "sort": 10                    // 同層排序，數字小在前
+  }
+]
+```
+
+**② 前端路由＋頁面（原始碼）** — 選單只是「連結」，沒有對應路由會進 404：
+
+1. 新增頁面：`resources/vue_src_admin/src/pages/{module}/XxxList.vue`
+2. 在 `resources/vue_src_admin/src/router/index.js` 的 `children` 加一行（放在 404 萬用路由**之前**）：
+   ```js
+   { path: 'orders', name: 'orders', meta: { title: '訂單管理' }, component: () => import('../pages/order/OrderList.vue') },
+   ```
+3. 子站後台改完要重建：`npm run admin:build`（開發中用 `npm run admin:dev`）。
+
+**③ 讓選單真的套用到子站**
+
+- 新站：建站時自動帶入核心模塊的選單。
+- 既有站的**非核心模塊**：主站「開通」該模塊時會即時補註冊選單。
+- 既有站的**核心模塊**，或你事後**修改了 `module.json` 的 `menus`**：不會自動更新，需重跑 baseline seed（見 20.0 共通陷阱）。⚠ 這會用 `module.json` 的值**覆蓋**後台選單管理頁手改過的 `title`／`subtitle`／`icon`／`path`／`permission_code`／`sort`。
+- 關閉模塊**不會刪除**選單列，只是不顯示。
+
+**可見性規則（選單沒出現時對照檢查）**
+
+1. 該模塊對目前站點**已開通**（核心模塊恆開通）。
+2. 登入者對該葉節點有權限：持有該模塊任一 `web.*` 權限碼，或持有節點 `permission_code`；**兩者皆空且非 `login_only` 的葉節點一律不顯示**。
+3. 超級管理員、該端口的端口管理員直接通過；一般角色要在「角色管理」勾選對應權限。
+4. 選單有快取，後台改選單／開關模塊會自動換版；仍異常可 `php artisan optimize:clear`。
+
+**新增「分組」節點**：分組沒有 `module.json` 機制，是 `SiteBaselineSeeder::seedAdminMenu()` 的 `$groups` 陣列（目前 `group-account`、`group-system`，**僅 `admin` 端口**）。要加分組就在該陣列補一筆（`key` 建議用 `group-` 開頭），再重跑 seed；`module.json` 才能用 `"group": "你的 key"` 引用。新端口要有分組，需自行仿照寫一份 seed（分組以 `portal_key + key` 為準）。
+
+### 20.3 新增端口（portal）
+
+端口 = 一個獨立的登入入口。**後端只要有資料列就能登入**；但要真的有可用的畫面，還得另外建前端。依序：
+
+1. **建立端口資料列**（兩種方式擇一）
+   - 後台「端口管理」頁新增（只對當前站）。
+   - 寫進 `SiteBaselineSeeder::run()`（仿 `admin` 端口那段 `Portal::updateOrCreate`），之後重跑 seed，新站才會自動帶出。
+   欄位：`portal_key`（小寫英數底線，建立後視為不可改）、`admin_only`（`true`＝僅端口管理員可登入）、`requires_login`（`false`＝允許訪客瀏覽）、`is_enabled`。端口**不提供刪除**。
+2. **建立該端口的角色**：後台「角色管理」，角色必須屬於某一端口、不可跨端口共用。
+3. **開通使用者**：在「使用者管理」把使用者加入該端口（`user_portal_access`）並指派角色或設為端口管理員。超級管理員不需此步驟。
+4. **標註 API 適用端口**：Controller 的 `@api-portal` 填新的 `portal_key`（或 `*` 代表不限端口）；標了不存在的端口，`permission:sync-api`／`swagger:generate` 會報錯中斷。之後重跑 `permission:sync-api`。
+5. **選單**：`module.json` 的 `menus[].portal` 填新端口（20.2）。
+6. **前端 SPA（真的要有畫面才需要）**：目前只有 `admin`（子站後台）、`hq`（主站後台）、`vue`（前台）三套。新端口通常是複製 `admin` 這一套，需要改動的地方：
+   | 項目 | 位置 |
+   | --- | --- |
+   | 前端原始碼目錄 | `resources/vue_src_{portal}/`（複製 `vue_src_admin`） |
+   | **登入送出的 `portal_key`** | `stores/auth.js` 的 `PORTAL_KEY` 常數（寫死，忘了改會登進 admin 端口） |
+   | 路由 base／側邊欄讀取的端口 | `main.js`（`resolveBase`）、`router/index.js` |
+   | Vite 設定 | 複製 `vite.admin.config.js` → `vite.{portal}.config.js`，改 `root`、`base`（`/{portal}-assets/`）、`outDir`、dev `port`（見 20.6） |
+   | npm scripts | `package.json` 加 `{portal}:dev`、`{portal}:build` |
+   | Laravel 入口 | 仿 `AdminSpaController` 新增控制器，並在 `routes/web.php` 註冊 `/{portal}`、`/{portal}/{any}`，**要放在最後的 `Route::fallback` 之前** |
+   | 部署／打包 | 新增的 `public/{portal}-assets` 為編譯產物不進版控，新環境要補建置（見 3.2） |
+
+> 提醒：目前跳轉登入（主站→子站）只有 `admin` 端口有落地頁，其他端口會導向 `/{portal_key}`，見 1.2 第 4 點。
+> 嚴格 CSP 的新端口前端：不要用 `:style` 動態綁定，見 4.2.1。
+
+### 20.4 權限（API 權限碼 → 角色）
+
+權限是三段資料串起來的，**任何一段漏了，結果都是 403**：
+
+```text
+Controller 方法 + @api-* 註解  ──permission:sync-api──▶  permissions 表（api.{module}.{method}）
+路由 permission.api:{code}      ──請求時比對──▶            目前登入端口的角色是否持有該碼
+後台「角色管理」勾選            ──────────────▶            roles 的權限碼
+```
+
+- **新增／改名 API 後**：`php artisan permission:sync-api --site=1 --assign-admin=admin`。`--assign-admin` 會把新權限碼併進指定帳號的角色；端口管理員、超級管理員本來就全開，不需要。
+- **新權限要給其他角色**：後台「角色管理」勾選（端口－模塊－接口三層樹，見 7.5）。
+- **權限碼萬用字元**：`api.order.*` 代表該模塊全部。
+- **只能授予自己持有的**（授權上限），超級管理員／系統管理員除外；稽核用 `php artisan permission:audit-ceiling --site=1`。
+- **Web 頁面權限**（`app/Web/...` 的 Blade 頁面）：路由掛 `permission.web:web.{module}.{action}`（action 限 `entry/view/create/update/delete`），再執行 `php artisan permission:sync-web --site=1 --assign-admin=admin`。
+- **某支 API 不想綁權限**：路由只掛 `jwt.auth`（登入即可）；完全公開則不掛，但**需評估風險**，並在註解 `@api-portal *`。
+- **權限碼存在子站各自的資料庫**：多個子站要各跑一次 `permission:sync-api --site=N`。
+- 角色／使用者這類**跨端口操作**的路由刻意不掛 `permission.api`（Controller 內自行判斷，見 7.1），新增類似功能前先讀該節。
+
+### 20.5 依賴設定
+
+**模塊依賴**（A 模塊需要 B 模塊先存在）— 編輯 A 的 `module.json`：
+
+```json
+"depends": ["user", "role"]        // 填對方的 module code（snake_case）
+```
+
+- 主站**開通 A 時會自動連動開通 B**（回應 `cascaded_modules` 會列出）。
+- **關閉 B** 時若還有已開通的 A 依賴它，會被拒絕並列出擋住的模塊；要先關 A。
+- 改完執行 `php artisan module:sync`；已開通的站不需重開。
+- 單站部署包（`site:package`）依這份依賴遞移展開，漏寫 `depends` 會造成部署包缺少被依賴模塊的程式碼。
+- 核心模塊（`is_core=true`）不可被取消，也不進入可勾選清單；**核心模塊不要依賴非核心模塊**。
+
+**套件依賴**：
+
+```powershell
+composer require vendor/package        # 後端；會更新 composer.lock，兩個檔都要提交
+npm install some-package               # 前端；同樣提交 package-lock.json
+```
+
+- PHP／Laravel 版本基線見第 2 節，不得任意升降。
+- 新增套件後 `composer audit`、`npm audit` 要過（第 4.9 節）。
+- 單站部署包不含 `vendor/`、`node_modules/`，現場依 lock 檔還原，所以 **lock 檔必須與 composer.json／package.json 一致**。
+- 若某套件只有部分模塊用到，在該模塊的說明文件註明，避免移除模塊時漏掉。
+
+### 20.6 TCP port 與本機網址
+
+| 項目 | 位置 | 預設 |
+| --- | --- | --- |
+| Laravel serve | `php artisan serve --port=8000`（或 `composer run dev` 內的參數） | 8000 |
+| 前台 SPA dev | `vite.vue.config.js` → `server.port` | 5173 |
+| 主站後台 dev | `vite.hq.config.js` → `server.port` | 5175 |
+| 子站後台 dev | `vite.admin.config.js` → `server.port` | 5176 |
+| Blade 資產 dev | `vite.config.js` | 5173（預設，與前台 SPA 衝突時 Vite 會自動換號） |
+| dev server 轉發 `/api` 的目標 | 環境變數 `VUE_DEV_API_PROXY`（預設 `http://127.0.0.1:8000`） | — |
+
+- 改了 `php artisan serve` 的埠，要同步設 `VUE_DEV_API_PROXY` 與 `.env` 的 `APP_URL`，否則 SPA 的 `/api` 會打到舊埠。
+- **不需要為此改 CORS**：SPA 走 proxy，對瀏覽器是同源。`CORS_ALLOWED_ORIGINS` 只給「前台真的架在別的網域」的情境，且不可用 `*`（見 4.2.2）。
+- **不需要改 CSP**：Blade 資產的 dev server 來源由程式讀 `hot` 檔自動放行，不寫死埠號（4.2.1）。
+- 兩個 dev server 同埠會被 Vite 自動遞增換號，網址以終端機輸出為準。
+- 用 `npm run vue:dev` 等獨立 dev server 時，瀏覽器不經過 Laravel，**看不到 CSP 違規**；要驗證需 `build` 後走 Laravel 路由（4.2.1 第 2、8 點）。
+
+### 20.7 系統設定項、字典、初始資料
+
+- **系統設定（`system_configs`）只開放改「值」不開放改「結構」**：新增設定項要在 `SiteBaselineSeeder` 補一筆（仿 `seedSiteBasicConfig()` 的 `$items`，需指定 `cfg_module`／`cfg_name`／`cfg_type`），程式碼再去讀它。17 種 `cfg_type` 與 `cfg_option` 寫法見 17.1。
+- **字典**：仿 `seedSiteStatusDictionary()` 寫 seed；`dic` 類型設定項的 `cfg_option` 填字典 `code`。也可在後台「資料字典」手建，但只影響該站。
+- **初始身份別／帳號**：身份別在 `SiteBaselineSeeder::run()`；帳號名稱／密碼在 `config/initial_accounts.php`，實際值來自 `.env`（`SITE_SUPER_ADMIN_*`、`SITE_DELEGATION_ROOT_*`、`HQ_ADMIN_*`）。**密碼沒填 seeder 會直接丟例外**。
+- 以上都屬 baseline seed，**既有站要手動重跑**（見 20.0 共通陷阱）。
+- 主站（HQ）的資料另有 `database/hq/seeders/HqDatabaseSeeder`，指令不同：`php artisan db:seed --class=Database\Hq\Seeders\HqDatabaseSeeder`。
+
+### 20.8 `.env` 與 `config/*.php`
+
+1. 新設定值：先寫進 **`.env.example`**（附註解與安全的預設），再在 `config/*.php` 用 `env('KEY', default)` 讀出。
+2. **程式碼一律讀 `config('...')`，禁止在 `config/` 以外呼叫 `env()`**：`config:cache` 後 `env()` 會回 `null`（本專案實際踩過，症狀是 `Access denied for user ''@'localhost'`）。
+3. 改完執行 `php artisan optimize:clear`。
+4. 子站資料庫連線不要自己組，走 `App\Support\Site\SiteDatabaseConfig`；多站設定在 `config/multisite.php`。
+5. 單站部署包會依 `.env.example` 產生 `.env`，新增必填設定記得**同時**更新 `.env.example` 與部署說明範本 `resources/deploy/DEPLOY.md`，否則現場會漏設。
+
+### 20.9 錯誤碼與語言包
+
+1. 新錯誤碼加在 `app/Support/Api/ErrorCode.php`（依分層：`1xxxx` 驗證、`2xxxx` 認證授權、`3xxxx` 業務、`5xxxx` 系統）。
+2. 同步登記到 `app/Support/Api/ErrorCatalog.php` 的 **`STATUS`（HTTP 狀態碼）與 `MESSAGE_KEYS`（語言 key）兩張表**，漏登記會回 500＋「未知錯誤」。
+3. 在 `lang/zh_TW/api.php`（主站用 `hq.php`）補對應文案，key 命名 `{domain}.{scene}.{key}`。
+4. 業務上的失敗訊息走 `RuntimeException` + 語言包 key，不要把中文寫死在程式裡。
+
+### 20.10 插件
+
+```powershell
+php artisan plugin:make ad microsoft v2019
+```
+
+1. 補完 `configSchema()` 與連線邏輯（實作必須符合該「功能」的 Contract 介面）。
+2. **手動登記到 `config/plugins.php`**（key 命名 `{brand_snake}_{version}`，例如 `microsoft_v2019`）；登記後才會出現在後台插件管理頁。
+3. 在子站後台「插件管理」啟用並填設定值（設定存於該站資料庫、加密儲存）。
+4. 若該 key 之後從 `config/plugins.php` 刪除或改名，已啟用它的站會直接拋例外，改名要連帶處理各站的設定。
+
+---
+
+## 21. 前端 Vue3 共用／客製化／部署詳解（對應 README 第 10 節）
+
+### 21.1 先分清楚：共有 4 套前端，各自獨立建置
+
+| 套 | 原始碼 | 服務誰 | 子站間 | 客製化單位 | 編譯產物（**不進版控**） | 建置指令 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 子站前台 | `resources/vue_src` | 子站的終端使用者 | 預設共用，可依站升級客製化（21.2） | 每站 `site-overrides/{code}` | `public/vue`、`public/vue-sites/{code}` | `php artisan vue:build [--site=]` |
+| 子站後台（`admin` 端口） | `resources/vue_src_admin` | 子站管理員 | **所有子站共用同一份**，無逐站客製化機制 | 靠選單／權限／系統設定差異化 | `public/admin-assets` | `npm run admin:build` |
+| 主站後台（`hq`） | `resources/vue_src_hq` | 我方維運 | 只有一份 | — | `public/hq-assets` | `npm run hq:build` |
+| Blade 資產 | `resources/css`、`resources/js` | SSO 落地頁等 Blade 頁 | 共用；Blade 檔可逐站覆寫（21.4） | `resources/views/sites/{code}` | `public/build` | `npm run build` |
+
+> 要記住：**每一套都是獨立的 Vite 專案**，改了哪一套就只重建哪一套；`npm run build` 不會順便建置 SPA。編譯產物全部在 `.gitignore`，**新環境、每次部署都要重建**（見 21.5）。
+> 新增端口要不要「自己一套前端」見 20.3 第 6 點；多數情況新端口是複製 `vue_src_admin`，之後該端口自己獨立演進，不與 `admin` 共用建置。
+
+### 21.2 子站前台的三層客製化（Tier 1／2／3）
+
+核心原則：**共用為預設，客製化範圍變大才升級；同一份 `site-overrides/{code}` 原始碼在三層之間通用**，升降級不必搬移或重寫程式碼（8.1）。
+
+| 層級 | 什麼時候用 | 做法 | `vue_build_mode` | 輸出 |
+| --- | --- | --- | --- | --- |
+| **Tier 1** 純公版 | 前台沒有任何差異 | 什麼都不用做 | `shared` | 共用 `public/vue` |
+| **Tier 2** 共用建置＋動態掛載 | 只多幾個全新頁面 | 在 `site-overrides/{code}` 加頁面，由共用建置動態載入 | `shared` | 共用 `public/vue` |
+| **Tier 3** 獨立建置 | 整組頁面／路由都不同，或該站要現場單站部署 | `vue:build --site={code}` 單獨建置 | `dedicated` | `public/vue-sites/{code}` |
+
+目錄約定（以 `vendor_a` 為例，子站代碼用**原始小寫值**，不轉 StudlyCase，見 9.2）：
+
+```text
+resources/vue_src/src/
+  pages/ router/ stores/ ...                共用主體（所有站都吃）
+  site-overrides/vendor_a/
+    pages/OrderDashboard.vue                該站客製頁面
+    routes.js                               該站客製路由片段
+```
+
+建立客製頁面骨架：
+
+```powershell
+php artisan vue:page:make vendor_a order-dashboard
+# 產生 site-overrides/vendor_a/pages/OrderDashboard.vue，並提示要在 routes.js 補的路由那一行
+```
+
+**升降級（人工決策，系統不自動判斷）**
+
+```powershell
+# Tier 1/2：共用建置，所有 shared 站一起用
+php artisan vue:build --clean
+
+# 升級 Tier 3：單站獨立建置 → public/vue-sites/vendor_a（base 為 /vue-sites/vendor_a/）
+php artisan vue:build --site=vendor_a --clean
+
+# CI/CD：重建所有 dedicated 站
+php artisan vue:build --all-sites
+```
+
+升級到 Tier 3 還要**把該站的 `vue_build_mode` 改成 `dedicated`**，否則後端依舊回傳共用 `public/vue/index.html`（`SpaFallbackController` 依 `SiteContext->vueBuildMode` 決定出哪個目錄）。要改兩處、缺一不可：
+
+1. 主站 `sites` 表該站的 `vue_build_mode` 欄位（供 `--all-sites`、部署包說明判讀）。
+2. 該站的 `storage/app/sites/{site_id}.php` 內的 `'vue_build_mode' => 'dedicated'`（執行期實際讀的是這個檔案，不查主站 DB，見第 6 節）。
+
+降級則反向：改回 `shared`，清掉或保留 `site-overrides` 皆可，共用 `public/vue` 不受影響。
+
+#### ⚠ 目前實作與設計的落差（客製化前先看）
+
+下表是我逐一核對程式碼得到的現況（非實測執行；動手前請自行驗證）：
+
+| 設計（8.3／8.4） | 程式現況 | 實務影響與處理 |
+| --- | --- | --- |
+| Tier 2：由 `GET /api/site/config` 的 `custom_routes` 清單動態掛載客製頁 | `SiteConfigController` 目前**固定回傳 `custom_routes: []`**，`vue:page:make` 產生的 `routes.js` 也**沒有任何程式讀取** | 只放檔案、不做事，**客製頁不會出現**。要啟用需補兩件事：(a) 讓 `custom_routes` 依站點產出（例如存站台設定）；(b) 前台 router 改用 `import.meta.glob('./site-overrides/**/*.vue')` 對照載入——`router/index.js` 現行的 `import(route.component)` 用**執行期字串**載入原始碼路徑，建置後該路徑不存在，無法運作 |
+| Tier 3：共用主體 ＋ `site-overrides/{code}` 疊加後單獨建置 | `vue:build --site=` 目前**只切換輸出目錄與 base path**（`VUE_BUILD_OUTDIR`／`VUE_BUILD_BASE`），`vite.vue.config.js` 沒有把該站 overrides 合進主體 | 現在 `--site` 建出來的內容與共用建置相同，只是放在別的目錄。要真正疊加，需在 `vite.vue.config.js` 加入依 `--site` 設定的 alias／入口覆寫（見下方 21.3 的建議做法） |
+| `vue:build --output=public/vue`（`resources/deploy/DEPLOY.md` 第 6 節範例） | `vue:build` **沒有 `--output` 選項** | 現場單站部署的 Tier 3 照 DEPLOY.md 下指令會報錯；改用 `vue:build --site={code}` 後，自行把 `public/vue-sites/{code}` 內容放到 `public/vue`，或補上該選項 |
+| 沒有切換 `vue_build_mode` 的指令／介面 | 只有建站時預設寫入 `shared` | 目前只能手改資料（見上方升級步驟） |
+
+> 以上屬「框架尚未做完的部分」。真正開始做某個子站的前台客製化時，**先把對應落差補完並寫回本文件**（開發約定第 1 點），否則會做出一個「檔案有了、畫面沒有」的狀態。
+
+### 21.3 客製化如何「單獨疊加」而不污染共用
+
+要守住的邊界：**共用主體（`resources/vue_src/src/*` 除 `site-overrides` 以外）不為任何單一客戶改動**；客戶差異只放在 `site-overrides/{code}/`。
+
+| 想做的事 | 放哪裡 | 說明 |
+| --- | --- | --- |
+| 純樣式／文案／Logo／主題色 | **系統設定**（後台 System Config，`site_basic`）→ `GET /api/site/config` | 不需要任何客製化層級，三層通用（8.2、17.5） |
+| 一兩個全新頁面 | `site-overrides/{code}/pages` ＋ `routes.js`（Tier 2，需先補完 21.2 落差） | 不影響其他站的 bundle（動態載入 chunk） |
+| 整套頁面／路由結構不同 | Tier 3 | 與共用完全隔離，互不影響快取檔名 |
+| 後端 API 邏輯不同 | `app/Sites/{SiteCode}/...` 覆寫 Service（見第 7 節第 4 點） | 前端客製與後端客製是兩條線，可以只做其中一邊 |
+| Blade 頁面不同（SSO 落地頁等） | `resources/views/sites/{code}/...` | 同名 view 自動優先，沒有該目錄則走公版（21.4） |
+| 該站專屬資料表／全新 API | `database/sites/{code}/migrations`、`app/Sites/{SiteCode}/Api/{module}` | `site:migrate` 會自動偵測並疊加 |
+
+Tier 3 疊加的建議做法（需要自行補實作，供開發者參考，非現有功能）：
+
+1. 在 `vite.vue.config.js` 讀 `VUE_BUILD_SITE`，設定 `resolve.alias`：把 `@overrides` 指到 `site-overrides/{code}`（共用建置則指到一個空目錄）。
+2. 共用 `router/index.js` 以 `import.meta.glob('@overrides/routes.js')` 取該站路由片段併入。
+3. `VueBuildCommand::buildOne()` 多傳一個 `VUE_BUILD_SITE` 環境變數。
+4. 想「覆寫」共用元件時，不要改共用檔，用 alias 把同名元件導向 overrides 內的版本。
+
+**絕不要**：為了某客戶在共用頁面加 `if (siteCode === 'vendor_a')`。這會讓部署包（只篩選目錄、不合併邏輯）把客戶專屬判斷帶給別的站，與「共用層不寫死站點代碼」的原則衝突（6.8 第 7 點）。
+
+### 21.4 多端口與 Blade 的對應
+
+- **各端口的前端互相獨立**：`admin` 與你日後新增的 `workshop`、`vendor` 等端口，建置、輸出目錄、路由 base 各自一套（20.3 第 6 點）。同一站的不同端口可同時存在，使用者在各端口各自登入（JWT 綁單一端口）。
+- **子站後台（`admin`）全站共用同一份建置**：不同客戶的後台差異靠 **選單（`module.json`／選單管理）、角色權限、模塊開通、系統設定** 達成，不是靠改前端程式。要讓某客戶多一個後台頁面 → 做成一個**模塊**（20.1）並只對該客戶開通，而不是改 `vue_src_admin` 加條件。
+- **路徑前綴進站**：沒綁網域的子站用 `/{site_code}/admin`、`/{site_code}/…`；前端靠 `GET /api/site/config` 回傳的 `site_code` 決定 router base，**不要在前端自己猜網址片段**（8.2）。前端 `fetch('/api/...')` 要帶 `X-Site-Path-Prefix`（見 10.3 的陷阱說明），否則路徑前綴站會被誤判成預設站。
+- **Blade 覆寫**：把同名檔放到 `resources/views/sites/{code}/{module}/…` 即可，`EnsureSiteContext` 偵測到該目錄才插入查找路徑；不需要為每個站先建空檔（8.5）。
+- **裸網域根目錄 `/` 目前會 302 到 `/admin`**（前台只是骨架）；前台補上真正頁面後，要拿掉 `SpaFallbackController` 的這段判斷，見 1.2 第 1 點。
+
+### 21.5 建置與部署流程
+
+**開發期（本機）**：見 4.1、4.2；dev server 不經 Laravel，看不到 CSP 違規。要驗 CSP，**必須建置後走 Laravel 路由**（`http://127.0.0.1:8000/admin`），這是上線前的必做關卡（4.2.1 第 8 點）。
+
+**多站／SaaS 部署（單一程式碼庫、多個子站）**
+
+```powershell
+# 1) 後端依賴與資料庫
+composer install --no-dev --optimize-autoloader
+php artisan migrate --path=database/hq/migrations --force     # 主站
+php artisan site:migrate --all                                # 所有子站（自動疊加客製化站的專屬 migration）
+
+# 2) 前端：逐套建置（缺哪套，該入口就 404）
+npm ci
+npm run hq:build         # /hq
+npm run admin:build      # /admin 以及 /{code}/admin
+npm run vue:build        # 或 php artisan vue:build --clean  → public/vue
+php artisan vue:build --all-sites     # 有 dedicated（Tier 3）站才需要
+npm run build            # Blade 資產（有用到 @vite 的頁面才需要）
+
+# 3) 快取（改 .env／config 後；順序見 4.8 的警告）
+php artisan config:cache && php artisan route:cache && php artisan view:cache
+```
+
+- 伺服器**只對外暴露 `public/`**，`resources/vue_src*` 原始碼不可被直接存取。
+- 不是每次都要全建：只改了 `vue_src_admin` 就只跑 `admin:build`；只改某 Tier 3 站的 overrides 就只跑 `vue:build --site={code}`。
+- 共用前台（`public/vue`）一改，**所有 `shared` 站同時生效**，上線前確認不會破壞任一站；`dedicated` 站不受影響但**也不會自動吃到共用的修正**，需重新 `vue:build --site=`。
+- 子站新增／切換 Tier 後，不需重啟或 `config:cache`（站點設定是 `storage/app/sites/{id}.php`，見第 6 節）。
+- CI/CD 建議：每次發版固定跑 `hq:build`、`admin:build`、`vue:build`、`vue:build --all-sites`，不要依賴開發機上的舊產物。
+
+**單站部署包（現場獨立部署，`site:package`）**
+
+- 部署包只含**該站**的客製化目錄，其他客戶的 `site-overrides`、`app/Sites`、`views/sites`、`database/sites` 一律排除（6.8）。
+- **不含 `vendor/`、`node_modules/`、`bootstrap/cache`**；現場 `composer install`、`npm ci`，並**重新建置前端**（`hq` 不在部署包內，只需 `admin:build` 與前台）。
+- Tier 1/2（`shared`）：用共用 `vue:build`；Tier 3（`dedicated`）：用 `vue:build --site={code}`。⚠ 注意 21.2 落差表中 `DEPLOY.md` 的 `--output` 問題。
+- 現場後續追加客製化：照 21.3 在 `site-overrides/{code}` 加檔案即可，操作與 SaaS 開發相同；公版更新時只覆蓋共用目錄，不會蓋掉客製化。
+
+**驗收清單（每次前端相關部署後）**
+
+1. 各入口 200：`/hq`、`/admin`、`/{code}/admin`、前台頁面（不是 404／空白）。
+2. 瀏覽器主控台**沒有 CSP violation**、沒有 `Key material must not be empty`（見 3.4）。
+3. 以非預設站（路徑前綴站）登入一次，確認 API 打到正確的站。
+4. Tier 3 站：開啟後網址資源路徑為 `/vue-sites/{code}/…`。
+
+---
+
+## 22. 功能現況、文件落差與設計決策速查（自 README 移入）
+
+> README 精簡後，下列內容移到本章保存。本章內「README x.x」指 README 舊版節次的內容，僅供查閱。
+
+### 22.1 功能現況與文件落差（原 README 第 1 節）
+
+#### 1.1 已完成且可運作
+
+| 功能 | 入口／位置 | DEVELOP.MD |
+| --- | --- | --- |
+| 多站架構（動態 DB 連線、網域／路徑前綴進站） | `EnsureSiteContext`、`SiteResolver`、`storage/app/sites/{id}.php` | 6.1、6.4 |
+| 自動建站／單站部署包匯出 | `site:create`、`site:package`、`site:cleanup-failed` | 6.3、6.8 |
+| 身份別／端口／角色三層權限（可設定，非寫死） | `identity_types`／`portals`／`roles`／`user_portal_access` | 7.1、7.2 |
+| 角色權限指派（端口→模塊→接口三層勾選樹） | 後台 `RoleList.vue`、`GET /api/roles/permission-catalog` | 7.5 |
+| 選單管理（取代寫死 config）+ 模塊開通連動 | `MenuService`、`menus.module_code` | 7.3、6.9 |
+| 模塊授權（依模塊購買、子站個別開通） | `module.json` 掃描、`site_modules` | 6.9 |
+| 插件系統（AD／SSO／設備對接） | `PluginManager`、`app/Plugins`、後台插件管理頁 | 6.10 |
+| SSO 對接（driver 可替換 + Blade 落地頁） | `GET /sso/callback`、`config/sso.php` | 8.6 |
+| 主站跳轉登入子站（一次性交換碼 + Blade 落地頁） | `POST /api/hq/sites/{id}/impersonate-token`、`GET /hq-impersonate/callback` | 6.11 |
+| 前台 Vue3 三層客製化（Tier 1/2/3 可升降級） | `resources/vue_src`、`vue:build` | 8.1～8.4 |
+| 三套獨立後台／前台 SPA | 子站後台 `admin`、主站後台 `hq` | 6.12、9.1 |
+| System Config（17 種型別 + 圖片上傳裁切） | `GET/PUT /api/system-configs`、`/image` 端點 | 17.2、17.5 |
+| 資料字典模組 | `GET/POST/PUT/DELETE /api/dictionaries` | 17.3 |
+| JWT 單帳號單 Token（限制範疇為單一端口）+ 會話清理排程 | `user_jwt_sessions`、`jwt:sessions:prune` | 11.1 |
+| 統一錯誤碼與 Exception → JSON | `ErrorCode`／`ErrorCatalog`／`bootstrap/app.php` | 11.2 |
+| 審計日誌（登入、權限變更、資料刪改） | `audit_logs`（各站自己一份） | 15 |
+| Swagger 文件（內部／廠商／主站） | `/docs`、`/docs/partner`、`/docs/hq` | 12 |
+| 嚴格 CSP／安全標頭（開發與正式一致） | `SecurityHeaders` middleware | 4.2 |
+
+#### 1.2 尚未完成或刻意暫緩
+
+1. **前台目前是骨架頁**：裸網域根目錄（`/`、`/{code}`）會 302 導向管理後台（DEVELOP.MD 8.5）。
+2. **檔案管理／通用圖片模組暫緩**：`app/Api/File`、`managed_files` 已從程式庫移除，設計保留在 DEVELOP.MD 10 節，需要時照設計重建。
+3. **初始資料極簡**：`portals` 目前只有 `admin`；`identity_types` 只有 `super_admin`／`system_admin`／`staff`（DEVELOP.MD 19）。
+4. **跳轉登入只有 `admin` 端口有落地頁**：其他 `portal_key` 尚無對應 SPA，目前導向 `/{portal_key}`，待該端口前端建置後接手（DEVELOP.MD 6.11、9.1）。
+
+#### 1.3 ⚠ 文件與程式現況落差（照 DEVELOP.MD 做卻失敗時，先看這張表）
+
+| DEVELOP.MD 寫法 | 實際現況 | 正確做法 |
+| --- | --- | --- |
+| `composer run swagger:generate`（12.7／18.2-6） | `composer.json` **沒有**這個 script | 用 `php artisan swagger:generate --pretty` |
+| `POST /api/site/sites`（6.3） | 實際路由是 `POST /api/hq/sites` | 見 `php artisan route:list`（`app/Hq/Site`） |
+| `site:create ... --clone-from=`（6.3） | 指令**沒有**這個選項，只有 `--type` | 想複製既有站客製化內容，目前需人工複製目錄後再建站 |
+| 廠商模式 `/api/factory/*`（8.6、12.8、18.3） | **路由不存在**，屬規劃未實作 | 目前不要照該範例測試 |
+| 初始帳號 `hq_admin`／`super_admin`（18.3） | 預設是 `admin`；子站系統管理員預設為**站代碼** | 見本檔第 8 節 |
+| Tier 2 動態掛載客製頁（8.3）、Tier 3 主體＋overrides 疊加建置（8.4） | `custom_routes` 固定回空陣列；`vue:build --site=` 只換輸出目錄 | 見本檔 10.2 落差表 |
+| `vue:build --output=`（`DEPLOY.md`、6.8） | 指令**沒有**此選項 | 見本檔 10.2 落差表 |
+
+### 22.2 關鍵設計決策一句話版（原 README 第 6 節）
+
+| 決策 | 一句話理由 | 詳見 |
+| --- | --- | --- |
+| **每站獨立資料庫**（非共用庫 + site_id 欄位） | 站點之間執行期完全互不相依，不會有跨站誤讀 | 6.1、6.4 |
+| **連線設定在開站當下落地成靜態檔** | 子站請求進來只讀 `storage/app/sites/{id}.php`，不回頭查主站 DB，開新站不需重啟／`config:cache` | 6.4 |
+| **執行期一律用固定連線名 `site_current`** | Model 不需要知道自己在哪個站；且禁止執行期 `env()`（`config:cache` 後會回 null） | 6.4 |
+| **安全設定「嚴格優先、及早失敗」** | CSP／CORS／速率限制／驗證白名單一開始就用正式等級，不靠上線前才收緊；dev server 來源由程式依 `hot` 檔自動放行 | 4.2 |
+| **身份別／端口／角色三者分離** | 身份別是「你是誰」（一人一種）；端口是「能進哪些入口」（一人多個、權限各自獨立） | 7 |
+| **模塊購買 + 角色權限雙層** | 子站要能用某功能，得先「已開通模塊」再「角色有權限」，API 與選單都擋 | 6.9 |
+| **插件以「功能」為契約、品牌版本為實作** | 換廠商／換案場不用改業務程式碼；設定放 `system_configs`，後台可編 | 6.10 |
+| **前台客製化分三層（Tier 1/2/3）** | 共用為預設，客製變大才升級；升降級只換 build 方式與一個設定值，不用重構 | 8.1 |
+| **System Config 只開放改值、不開放改結構** | 新增設定項代表程式碼要多讀一個欄位，必須工程師配合，不做假對稱的 CRUD | 17.2 |
+| **統一錯誤碼分層 + Exception 一律轉 JSON** | 前端只需一套判斷邏輯；`/api/*` 一律視為要回 JSON（避免驗證失敗被 302 成 HTML） | 11.2 |
+| **審計日誌跟著各自的資料庫走** | 主站操作記主站、子站操作記子站，不跨庫 join；密碼／token 一律不入日誌 | 15 |
+
+### 22.3 指令防呆與測試現況（原 README 3.7、4.9）
+
+早期版本裸跑 `php artisan migrate`／`db:seed` 會把子站表建進主站庫，或因缺 `site_current` 連線而失敗，README 曾以「絕不要這樣下」警告。現已改為指令本身防呆，設計見 13 章第 8 點；仍須避免的只剩：執行期呼叫 `env('DB_...')`（`config:cache` 後回 `null` → `Access denied for user ''@'localhost'`），連線一律走 `App\Support\Site\SiteDatabaseConfig`。
+
+```powershell
+php artisan test          # 或 composer test（先 config:clear 再 test）
+vendor/bin/pint           # 格式化（Laravel Pint）
+vendor/bin/pint --test    # 只檢查不修改
+composer audit            # PHP 依賴漏洞掃描
+npm audit                 # 前端依賴漏洞掃描
+```
+
+`php artisan test` 目前的實測結果：
+
+```text
+Tests:    1 failed, 1 passed (2 assertions)
+```
+
+失敗的是 `tests/Feature/ExampleTest`（預期 `GET /` 回 200，但目前 `/` 會 302 導向 `/admin`，見 DEVELOP.MD 8.5），屬**已知現況**，不是環境問題。
