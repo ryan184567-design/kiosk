@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->integer('bid');
             $table->integer('floor');
-            $table->integer('location');
+            $table->string('location');
             $table->string('image');
             $table->boolean('status');
             $table->timestamps();

@@ -44,7 +44,7 @@ class DataSettingService
         return $data;
     }
 
-    public function addDoorplate(int $doorplate, int $floor, int $household): Doorplate
+    public function addDoorplate(int $doorplate, int $floor, int $household, string $company_name): Doorplate
     {
 
         if (Doorplate::query()->where('doorplate',$doorplate)->where('floor',$floor)->where('household',$household)->exists())
@@ -56,13 +56,14 @@ class DataSettingService
             'doorplate' => $doorplate,
             'floor' => $floor,
             'household' => $household,
+            'company_name' => $company_name,
             'status' => 0,
         ]);
 
         return $doorplate;
     }
 
-    public function updateDoorplate(int $id, int $doorplate, int $floor, int $household): Doorplate
+    public function updateDoorplate(int $id, int $doorplate, int $floor, int $household,  string $company_name): Doorplate
     {
         $check_door = false;
         $Data = Doorplate::where('id',$id)->first();
@@ -85,6 +86,7 @@ class DataSettingService
             'doorplate' => $doorplate, // 注意變數名稱不要跟類別名稱打架
             'floor'     => $floor,
             'household' => $household,
+            'company_name' => $company_name,
             'status'    => 0,
         ]);
 
