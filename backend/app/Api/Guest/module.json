@@ -1,0 +1,65 @@
+{
+    "code": "guest",
+    "name": "訪客管理",
+    "description": "訪客的登記、預約、審核、紀錄以及報表功能",
+    "is_core": false,
+    "sort": 99,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "registration",
+            "title": "訪客登記",
+            "subtitle": "登記訪客資料",
+            "icon": "Menu",
+            "path": "/guest/registration",
+            "permission_code": "api.guest.registration",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "approvals",
+            "title": "訪客審核",
+            "subtitle": "對預約訪客做審核管理",
+            "icon": "Menu",
+            "path": "/guest/approvals",
+            "permission_code": "api.guest.approvals",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "records",
+            "title": "訪客紀錄",
+            "subtitle": "查看歷史訪客紀錄",
+            "icon": "Menu",
+            "path": "/guest/records",
+            "permission_code": "api.guest.records",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "applies",
+            "title": "預約管理",
+            "subtitle": "查看預約訪客名單",
+            "icon": "Menu",
+            "path": "/guest/applies",
+            "permission_code": "api.guest.applies",
+            "group": "group-account",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "reports",
+            "title": "統計報表",
+            "subtitle": "查看訪客相關統計報表",
+            "icon": "Menu",
+            "path": "/guest/reports",
+            "permission_code": "api.guest.reports",
+            "group": "group-account",
+            "sort": 0
+        }
+    ]
+}
