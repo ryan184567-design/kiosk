@@ -6,7 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Building extends Model
 {
-    protected $connection = 'buildings';
+    protected $connection = 'site_current';
+    protected $table = 'buildings';
 
     protected $fillable = [
         'id',

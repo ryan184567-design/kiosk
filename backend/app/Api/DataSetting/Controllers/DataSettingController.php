@@ -22,7 +22,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method GET
-     * @api-path /api/data_setting/doorplate
+     * @api-path /api/data-setting/doorplate
      * @api-tag DataSetting
      * @api-summary 門牌資料
      * @api-description
@@ -43,7 +43,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method POST
-     * @api-path /api/data_setting/doorplate/create
+     * @api-path /api/data-setting/doorplate/create
      * @api-tag DataSetting
      * @api-summary 新增門牌
      * @api-description
@@ -54,7 +54,7 @@ class DataSettingController extends BaseApiController
      * @api-request-field household int 室/戶/之
      * @api-request-field company_name string 公司名稱
      * @api-request-example
-     * {"doorplate": "132", "floor":"2", "household":"3", "company_name":"有限公司" }
+     * {"doorplate": 132, "floor": 2, "household": 3, "company_name":"有限公司" }
      * @api-response-field data.id int 門牌ID
      * @api-response-field data.doorplate int 門牌號碼
      * @api-response-field data.floor int 樓層
@@ -82,7 +82,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method POST
-     * @api-path /api/data_setting/doorplate/update
+     * @api-path /api/data-setting/doorplate/update
      * @api-tag DataSetting
      * @api-summary 更新門牌
      * @api-description
@@ -94,14 +94,14 @@ class DataSettingController extends BaseApiController
      * @api-request-field household int 室/戶/之
      * @api-request-field company_name string 公司名稱
      * @api-request-example
-     * {"id":"1", "doorplate":"132", "floor":"2", "household":"3", "company_name":"有限公司" }
+     * {"id": 1, "doorplate": 132, "floor": 2, "household": 3, "company_name":"有限公司" }
      * @api-response-field data.id int 門牌ID
      * @api-response-field data.doorplate int 門牌號碼
      * @api-response-field data.floor int 樓層
      * @api-response-field data.household int 室/戶/之
      * @api-response-field data.company_name string 公司名稱
      */
-    public function updateDoorplate (Request $request, DataSettingService $dataSetting)
+    public function updateDoorplate(Request $request, DataSettingService $dataSetting)
     {
         $data = $this->validateInput($request, [
             'id' => 'required|int',
@@ -124,7 +124,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method POST
-     * @api-path /api/data_setting/doorplate/delete
+     * @api-path /api/data-setting/doorplate/delete
      * @api-tag DataSetting
      * @api-summary 刪除門牌
      * @api-description
@@ -132,7 +132,7 @@ class DataSettingController extends BaseApiController
      * @api-portal *
      * @api-request-field id int 門牌ID
      * @api-request-example
-     * {"id":"1"}
+     * {"id": 1}
      * @api-response-empty
      */
     public function deleteDoorplate (request $request, DataSettingService $dataSetting)
@@ -150,7 +150,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method GET
-     * @api-path /api/data_setting/floor
+     * @api-path /api/data-setting/floor
      * @api-tag DataSetting
      * @api-summary 樓層資料
      * @api-description
@@ -158,7 +158,7 @@ class DataSettingController extends BaseApiController
      * @api-portal *
      * @api-request-field bid int 樓別ID
      * @api-request-example
-     * {"bid":"1"}
+     * {"bid": 1}
      * @api-response-field floor[].bid int 樓別ID
      * @api-response-field floor[].floor int 樓層號碼
      * @api-response-field floor[].location string 地上/地下
@@ -195,7 +195,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method GET
-     * @api-path /api/data_setting/building
+     * @api-path /api/data-setting/building
      * @api-tag DataSetting
      * @api-summary 樓別資料
      * @api-description
@@ -215,7 +215,7 @@ class DataSettingController extends BaseApiController
 
     /**
      * @api-method POST
-     * @api-path /api/data_setting/building/add
+     * @api-path /api/data-setting/building/add
      * @api-tag DataSetting
      * @api-summary 新增大樓
      * @api-description
@@ -225,7 +225,7 @@ class DataSettingController extends BaseApiController
      * @api-request-field on_floor int 地上樓層
      * @api-request-field under_floor int 地下樓層
      * @api-request-example
-     * {"name": "大樓", "on_floor":"2", "under_floor":"3" }
+     * {"name": "大樓", "on_floor": 2, "under_floor": 3 }
      * @api-response-field data.id int 大樓ID
      * @api-response-field data.name string 大樓名稱
      * @api-response-field data.on_floor int 地上樓層

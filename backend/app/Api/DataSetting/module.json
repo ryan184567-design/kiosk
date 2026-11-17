@@ -12,8 +12,8 @@
             "title": "棟別設定",
             "subtitle": "設定棟別資料",
             "icon": "Menu",
-            "path": "/data_setting/building",
-            "permission_code": "api.data_setting.building",
+            "path": "/data-setting/building",
+            "permission_code": "api.data_setting.index",
             "group": "group-account",
             "sort": 0
         },
@@ -23,8 +23,8 @@
             "title": "樓別設定",
             "subtitle": "設定樓層資料",
             "icon": "Menu",
-            "path": "/data_setting/floor",
-            "permission_code": "api.data_setting.floor",
+            "path": "/data-setting/floor",
+            "permission_code": "api.data_setting.index",
             "group": "group-account",
             "sort": 0
         },
@@ -34,8 +34,8 @@
             "title": "門牌設定",
             "subtitle": "設定門牌資料",
             "icon": "Menu",
-            "path": "/data_setting/doorplate",
-            "permission_code": "api.data_setting.doorplate",
+            "path": "/data-setting/doorplate",
+            "permission_code": "api.data_setting.index",
             "group": "group-account",
             "sort": 0
         }
