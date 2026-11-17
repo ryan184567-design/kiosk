@@ -128,4 +128,13 @@ return [
         'doorplate_exists' => '門牌號碼已存在'
     ],
 
+    'guest_apply' => [
+        'not_found' => '找不到此訪客預約單。',
+        'invalid_time_range' => '預約時段的結束時間必須晚於開始時間。',
+        'status_not_editable' => '此預約單目前狀態不可修改或取消。',
+        'already_checked_in' => '此預約單已報到，不可修改或取消。',
+        'visitor_count_mismatch' => '來訪者名單共 :count 位，超過來訪人數 :max 人。',
+        'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
+    ],
+
 ];

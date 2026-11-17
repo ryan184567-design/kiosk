@@ -46,7 +46,7 @@
             "subtitle": "查看預約訪客名單",
             "icon": "Menu",
             "path": "/guest/applies",
-            "permission_code": "api.guest.applies",
+            "permission_code": "api.guest_apply.index",
             "group": "group-account",
             "sort": 0
         },

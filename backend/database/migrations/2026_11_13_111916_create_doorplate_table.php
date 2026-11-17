@@ -18,6 +18,7 @@ return new class extends Migration
             $table->integer('household');
             $table->boolean('status');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
