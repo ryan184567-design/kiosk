@@ -12,30 +12,39 @@ use RuntimeException;
 class GuestApplyService
 {
     /** 可以修改／取消的狀態：待審核、核准（駁回與已取消不可再動） */
-    private const EDITABLE_STATUSES = [GuestApply::AUDIT_PENDING, GuestApply::AUDIT_APPROVED];
-    public function create(int $doorplate_id, string $date, string $time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
+    private const EDITABLE_STATUSES = [
+        GuestApply::STATUS_PENDING,
+        GuestApply::STATUS_EDIT_PENDING,
+        GuestApply::STATUS_APPROVED,
+        GuestApply::STATUS_EDIT_APPROVED,
+    ];
+
+    private const CANCELLABLE_STATUSES = self::EDITABLE_STATUSES;
+
+    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
     {
-        $this->assertTimeRange($time);
+        $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count, $visitors);
 
         $apply = GuestApply::query()->create([
             'doorplate_id' => $doorplate_id,
-            'date' => $date,
-            'time' => $time,
-            'visitor_count' => $visitor_count,
+            'visit_date' => $date,
+            'visit_start_time' => $start_time,
+            'visit_end_time' => $end_time,
+            'guest_count' => $visitor_count,
             'host_name' => $host_name,
-            'purpose' => $purpose ?? null,
-            'notes' => $notes ?? null,
-            'email_notify' => (bool) ($email_notify ?? false),
-            'sms_notify' => (bool) ($sms_notify ?? false),
-            'reminder_enabled' => (bool) ($reminder_enabled ?? false),
+            'visit_reason' => $purpose ?? null,
+            'remark' => $notes ?? null,
+            'is_email_notify' => (bool) ($email_notify ?? false),
+            'is_sms_notify' => (bool) ($sms_notify ?? false),
+            'is_auto_remind' => (bool) ($reminder_enabled ?? false),
             // 沒開啟提醒時不保留分鐘數，避免殘留舊值
-            'reminder_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
-            'applies_no' => $this->nextAppliesNo(),
+            'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
+            'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'visit_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
-            'booking_type' => GuestApply::BOOKING_ADVANCE,
-            'audit_status' => GuestApply::AUDIT_PENDING,
+            'fast_pass_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
+            'reservation_type' => GuestApply::TYPE_ADVANCE,
+            'reservation_status' => GuestApply::STATUS_PENDING,
         ]);
 
         foreach ($visitors as $v) {
@@ -56,35 +65,35 @@ class GuestApplyService
     /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼，也不改審核狀態。
      */
-    public function update(int $id, int $doorplate_id, string $date, string $time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
+    public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
     {
-        $this->assertTimeRange($time);
+        $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count , $visitors);
 
         $apply = GuestApply::query()->find($id);
         if (! $apply) {
             throw new RuntimeException(__('api.guest_apply.not_found'));
         }
-        $this->assertMutable($apply);
+        $this->assertMutable($apply, self::CANCELLABLE_STATUSES);
 
         $apply->update([
             'doorplate_id' => $doorplate_id,
-            'date' => $date,
-            'time' => $time,
-            'visitor_count' => $visitor_count,
+            'visit_date' => $date,
+            'visit_start_time' => $start_time,
+            'visit_end_time' => $end_time,
+            'guest_count' => $visitor_count,
             'host_name' => $host_name,
-            'purpose' => $purpose ?? null,
-            'notes' => $notes ?? null,
-            'email_notify' => (bool) ($email_notify ?? false),
-            'sms_notify' => (bool) ($sms_notify ?? false),
-            'reminder_enabled' => (bool) ($reminder_enabled ?? false),
+            'visit_reason' => $purpose ?? null,
+            'remark' => $notes ?? null,
+            'is_email_notify' => (bool) ($email_notify ?? false),
+            'is_sms_notify' => (bool) ($sms_notify ?? false),
+            'is_auto_remind' => (bool) ($reminder_enabled ?? false),
             // 沒開啟提醒時不保留分鐘數，避免殘留舊值
-            'reminder_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
-            'applies_no' => $this->nextAppliesNo(),
+            'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
+            'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'visit_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
-            'booking_type' => GuestApply::BOOKING_ADVANCE,
-            'audit_status' => GuestApply::AUDIT_PENDING,
+            'fast_pass_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
+            'reservation_status' => GuestApply::STATUS_EDIT_PENDING,
         ]);
 
         Guest::query()->where('guest_applies_id', $apply->id)->delete();
@@ -116,21 +125,20 @@ class GuestApplyService
             throw new RuntimeException(__('api.guest_apply.not_found'));
         }
 
-        $this->assertMutable($apply);
+        $this->assertMutable($apply, self::EDITABLE_STATUSES);
 
         $apply->update([
-            'audit_status' => GuestApply::AUDIT_CANCELLED,
+            'reservation_status' => GuestApply::STATUS_CANCELLED,
             'qr_code' => null,
-            'visit_code' => null,
+            'fast_pass_code' => null,
         ]);
 
         return $apply;
     }
 
     /** 時段格式為 HH:mm~HH:mm（格式已由 Controller 驗證），結束時間必須晚於開始時間 */
-    private function assertTimeRange(string $time): void
+    private function assertTimeRange(string $start, string $end): void
     {
-        [$start, $end] = explode('~', $time);
         if (strcmp($end, $start) <= 0) {
             throw new RuntimeException(__('api.guest_apply.invalid_time_range'));
         }
@@ -145,10 +153,14 @@ class GuestApplyService
     }
 
     /** 已報到不可異動 */
-    private function assertMutable(GuestApply $apply): void
+    private function assertMutable(GuestApply $apply, array $allowedStatuses): void
     {
         if ($apply->check_in_at !== null) {
             throw new RuntimeException(__('api.guest_apply.already_checked_in'));
+        }
+
+        if (!in_array($apply->reservation_status, $allowedStatuses, true)) {
+            throw new RuntimeException(__('api.guest_apply.status_not_editable'));
         }
     }
 
@@ -157,10 +169,10 @@ class GuestApplyService
     {
         $prefix = 'GA'.now()->format('Ymd');
         $last = GuestApply::query()
-            ->where('applies_no', 'like', $prefix.'%')
+            ->where('reservation_id', 'like', $prefix.'%')
             ->lockForUpdate()
-            ->orderByDesc('applies_no')
-            ->value('applies_no');
+            ->orderByDesc('reservation_id')
+            ->value('reservation_id');
 
         $seq = $last ? ((int) substr($last, -4)) + 1 : 1;
 

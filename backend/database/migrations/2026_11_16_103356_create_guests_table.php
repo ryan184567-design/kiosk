@@ -13,12 +13,7 @@ return new class extends Migration
     {
         Schema::create('guests', function (Blueprint $table) {
             $table->id();
-
-            // 關聯到預約單主表，若預約單刪除，底下的訪客一併刪除 (cascade)
-            $table->foreignId('guest_applies_id')
-                  ->constrained('guest_applies')
-                  ->onDelete('cascade');
-
+            $table->unsignedBigInteger('guest_applies_id')->comment('預約單主表ID');
             $table->string('name', 100)->comment('訪客名字');
             $table->string('company_name', 150)->nullable()->comment('公司名');
             $table->string('title', 100)->nullable()->comment('職稱');

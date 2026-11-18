@@ -10,10 +10,13 @@ use App\Api\DataSetting\Models\Doorplate;
 use App\Api\DataSetting\Models\Building;
 use App\Api\DataSetting\Models\Floor;
 use App\Api\DataSetting\Services\DataSettingService;
+use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Api\ErrorCode;
 use RuntimeException;
 class DataSettingController extends BaseApiController
 {
+    use PaginationHelper;
+
     public function index(Request $request)
     {
         // TODO: $this->validateInput($request, [...]) + 呼叫 Service。
@@ -28,17 +31,27 @@ class DataSettingController extends BaseApiController
      * @api-description
      * 獲取所有門牌資訊
      * @api-portal *
-     * @api-response-field data[].id int 門牌ID
-     * @api-response-field data[].doorplate int 門牌號碼
-     * @api-response-field data[].floor int 樓層
-     * @api-response-field data[].household int 室/戶/之
-     * @api-response-field data[].company_name string 公司名稱
-     * @api-response-field data[].status int 使用狀態
+     * @api-response-field data.items[].id int 門牌ID
+     * @api-response-field data.items[].doorplate int 門牌號碼
+     * @api-response-field data.items[].floor int 樓層
+     * @api-response-field data.items[].household int 室/戶/之
+     * @api-response-field data.items[].company_name string 公司名稱
+     * @api-response-field data.items[].status int 使用狀態
+     * @api-response-field data.total int 總筆數
+     * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
+     * @api-response-field data.current_page int 目前頁碼
      */
-    public function doorplate()
+    public function doorplate(Request $request)
     {
-        $data = Doorplate::get();
-        return $data;
+        $result = $this->paginateOrGet(
+            Doorplate::query(),
+            (int) $request->integer('per_page', -1),
+            (int) $request->integer('page', 1),
+        );
+
+        $result['items'] = collect($result['items'])->map(fn (Doorplate $doorplate) => $this->presentDoorplate($doorplate))->all();
+
+        return $this->success($result);
     }
 
     /**
@@ -190,7 +203,7 @@ class DataSettingController extends BaseApiController
             'building'=>$building
         ];
 
-        return $data;
+        return $this->success($data);
     }
 
     /**
@@ -201,16 +214,26 @@ class DataSettingController extends BaseApiController
      * @api-description
      * 獲取所有大樓資訊
      * @api-portal *
-     * @api-response-field data[].id int 樓別ID
-     * @api-response-field data[].name string 大樓名稱
-     * @api-response-field data[].on_floor int 地上樓層
-     * @api-response-field data[].under_floor int 地下樓層
-     * @api-response-field data[].status int 使用狀態
+     * @api-response-field data.items[].id int 樓別ID
+     * @api-response-field data.items[].name string 大樓名稱
+     * @api-response-field data.items[].on_floor int 地上樓層
+     * @api-response-field data.items[].under_floor int 地下樓層
+     * @api-response-field data.items[].status int 使用狀態
+     * @api-response-field data.total int 總筆數
+     * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
+     * @api-response-field data.current_page int 目前頁碼
      */
-    public function building()
+    public function building(Request $request)
     {
-        $data = Building::get();
-        return $data;
+        $result = $this->paginateOrGet(
+            Building::query(),
+            (int) $request->integer('per_page', -1),
+            (int) $request->integer('page', 1),
+        );
+
+        $result['items'] = collect($result['items'])->map(fn (Building $building) => $this->presentBuilding($building))->all();
+
+        return $this->success($result);
     }
 
     /**
@@ -266,6 +289,7 @@ class DataSettingController extends BaseApiController
             'floor' => $doorplate->floor,
             'household' => $doorplate->household,
             'company_name' => $doorplate->company_name,
+            'status' => $doorplate->status
         ];
     }
 }
