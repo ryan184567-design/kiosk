@@ -31,7 +31,6 @@ class GuestSlotController extends BaseApiController
      */
     public function slotIndex(Request $request, GuestSlotService $slot)
     {
-
         $result = $this->paginateOrGet(
             $slot->slots(),
             (int) $request->integer('per_page', -1),
