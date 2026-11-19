@@ -1,0 +1,77 @@
+:root {
+  --brand: #1554c0;
+  --brand-dark: #0b3a8c;
+  --brand-light: #e8f1ff;
+  --brand-gradient: linear-gradient(160deg, #3a8bf5 0%, #1554c0 100%);
+  --text: #10295a;
+  --muted: #5b6b85;
+  --line: #d7e3f5;
+  --card: #ffffff;
+  --radius: 18px;
+  --shadow: 0 12px 32px rgba(21, 84, 192, 0.12);
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Noto Sans TC', 'Microsoft JhengHei', 'PingFang TC', 'Hiragino Sans', system-ui,
+    sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 85% 10%, rgba(58, 139, 245, 0.18), transparent 45%),
+    radial-gradient(circle at 10% 90%, rgba(21, 84, 192, 0.12), transparent 40%),
+    linear-gradient(160deg, #eef4fd 0%, #f8fbff 50%, #e3edfb 100%);
+  background-attachment: fixed;
+  /* 觸控訪客機：避免長按選取文字 */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+input,
+textarea {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+button {
+  font-family: inherit;
+}
+
+/* 共用卡片 */
+.panel {
+  background: var(--card);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(215, 227, 245, 0.8);
+}
+
+/* 頁面切換動畫 */
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s ease;
+}
+.page-enter-from {
+  opacity: 0;
+  transform: translateX(24px);
+}
+.page-leave-to {
+  opacity: 0;
+  transform: translateX(-24px);
+}
+
+/* 大尺寸主要按鈕（觸控用） */
+.kiosk-btn.ant-btn {
+  height: 60px;
+  min-width: 240px;
+  font-size: 20px;
+  font-weight: 600;
+  border-radius: 12px;
+}
