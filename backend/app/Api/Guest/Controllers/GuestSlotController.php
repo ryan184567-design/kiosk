@@ -29,7 +29,7 @@ class GuestSlotController extends BaseApiController
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function index(Request $request, GuestSlotService $slot)
+    public function slotIndex(Request $request, GuestSlotService $slot)
     {
 
         $result = $this->paginateOrGet(
@@ -65,7 +65,7 @@ class GuestSlotController extends BaseApiController
      * {"name": "A10","remark": "身分證"}
      * @api-response-empty
      */
-    public function store(Request $request, GuestSlotService $slot)
+    public function slotStore(Request $request, GuestSlotService $slot)
     {
         $data = $this->validateInput($request, [
             'name' => 'required|string|max:50',
@@ -111,7 +111,7 @@ class GuestSlotController extends BaseApiController
      * {"name": "E02","remark": "專放證件", "status": 1}
      * @api-response-empty
      */
-    public function update(Request $request, string $id, GuestSlotService $slot)
+    public function slotUpdate(Request $request, string $id, GuestSlotService $slot)
     {
         $data = $this->validateInput($request, [
             'name' => 'required|string|max:50',
@@ -140,7 +140,7 @@ class GuestSlotController extends BaseApiController
      * @api-no-request-body
      * @api-response-empty
      */
-    public function destroy(string $id, GuestSlotService $slot)
+    public function slotDestroy(string $id, GuestSlotService $slot)
     {
         $slot->delete($id);
 

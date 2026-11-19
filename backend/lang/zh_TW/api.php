@@ -137,7 +137,7 @@ return [
         'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
     ],
 
-    'guest_alot' => [
+    'guest_slot' => [
         'not_found' => '找不到此證件櫃',
         'in_use' => '此證件櫃正在使用中',
     ],

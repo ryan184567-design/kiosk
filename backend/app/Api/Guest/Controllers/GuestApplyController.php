@@ -121,7 +121,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field is_email_notify bool 是否 Email 通知受訪人，選填，預設 false
      * @api-request-field is_sms_notify bool 是否簡訊通知來訪者，選填，預設 false
      * @api-request-field is_auto_remind bool 是否到訪前自動提醒，選填，預設 false
-     * @api-request-field remind_time int 到訪前幾分鐘提醒，reminder_enabled 為 true 時必填，1～10080
+     * @api-request-field remind_time int 到訪前幾分鐘提醒，is_auto_remind 為 true 時必填，1～10080
      * @api-request-field visitor array 來訪者名單，必填，1～10 位
      * @api-request-field visitor[].name string 來訪者姓名，必填，最長 100 字
      * @api-request-field visitor[].company_name string 公司名稱，必填，最長 150 字
@@ -241,7 +241,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field is_email_notify bool 是否 Email 通知受訪人，選填，預設 false
      * @api-request-field is_sms_notify bool 是否簡訊通知來訪者，選填，預設 false
      * @api-request-field is_auto_remind bool 是否到訪前自動提醒，選填，預設 false
-     * @api-request-field remind_time int 到訪前幾分鐘提醒，reminder_enabled 為 true 時必填，1～10080
+     * @api-request-field remind_time int 到訪前幾分鐘提醒，is_auto_remind 為 true 時必填，1～10080
      * @api-request-field visitor array 來訪者名單（整批覆寫），必填，1～10 位
      * @api-request-field visitor[].name string 來訪者姓名，必填，最長 100 字
      * @api-request-field visitor[].company_name string 公司名稱，必填，最長 150 字
@@ -300,7 +300,7 @@ class GuestApplyController extends BaseApiController
     }
 
     /**
-     * @api-method POST
+     * @api-method PUT
      * @api-path /api/guest/applies/{id}/status
      * @api-tag GuestApply
      * @api-summary 審核訪客狀態
@@ -345,7 +345,7 @@ class GuestApplyController extends BaseApiController
             'is_email_notify' => ['nullable', 'boolean'],
             'is_sms_notify' => ['nullable', 'boolean'],
             'is_auto_remind' => ['nullable', 'boolean'],
-            'remind_time' => ['required_if:reminder_enabled,true,1', 'nullable', 'integer', 'min:1', 'max:10080'],
+            'remind_time' => ['required_if:is_auto_remind,true,1', 'nullable', 'integer', 'min:1', 'max:10080'],
             'visitor' => ['required', 'array', 'min:1', 'max:50'],
             'visitor.*.name' => ['required', 'string', 'max:100'],
             'visitor.*.company_name' => ['required', 'string', 'max:150'],

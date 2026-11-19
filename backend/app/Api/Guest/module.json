@@ -46,7 +46,7 @@
             "subtitle": "查看預約訪客名單",
             "icon": "Menu",
             "path": "/guest/applies",
-            "permission_code": "api.guest_apply.index",
+            "permission_code": "api.guest.index",
             "group": "group-account",
             "sort": 0
         },
@@ -68,7 +68,7 @@
             "subtitle": "證件櫃資料建立",
             "icon": "Menu",
             "path": "/guest/slots",
-            "permission_code": "api.guest_slot.index",
+            "permission_code": "api.guest.slotIndex",
             "group": "group-account",
             "sort": 0
         }

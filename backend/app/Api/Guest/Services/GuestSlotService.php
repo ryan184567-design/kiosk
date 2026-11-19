@@ -11,7 +11,7 @@ class GuestSlotService
 {
     public function slots(): Builder
     {
-        return GuestSlot::query()->all();
+        return GuestSlot::query();
     }
 
 

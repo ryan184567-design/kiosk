@@ -11,6 +11,8 @@ namespace App\Api\Guest\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Api\DataSetting\Models\Doorplate;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -68,5 +70,11 @@ class GuestApply extends Model
     public function guests(): HasMany
     {
         return $this->hasMany(Guest::class, 'guest_applies_id');
+    }
+
+    /** 受訪公司（門牌），含已軟刪除的門牌，避免歷史預約單顯示不出公司 */
+    public function doorplate(): BelongsTo
+    {
+        return $this->belongsTo(Doorplate::class, 'doorplate_id')->withTrashed();
     }
 }
