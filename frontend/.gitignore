@@ -1,0 +1,52 @@
+# ── 相依套件 ──
+node_modules/
+
+# ── 建置產出（由 npm run build 產生） ──
+dist/
+dist-ssr/
+*.local
+
+# ── 環境設定（含主機、印表機等本機設定；範本請改 .env.example） ──
+.env
+.env.*
+!.env.example
+
+# ── 記錄檔與列印預覽（logs/visitor-*.log、kiosk.log、print-last.*） ──
+logs/*
+!logs/.gitkeep
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── 快取 / 測試報告 / 暫存 ──
+.vite/
+.cache/
+.eslintcache
+.stylelintcache
+coverage/
+*.tsbuildinfo
+*.tmp
+*.temp
+
+# ── 編輯器 ──
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── 作業系統 ──
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ── Claude Code 個人設定 ──
+.claude/settings.local.json
+
