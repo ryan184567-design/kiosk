@@ -9,9 +9,14 @@ Description: 產生 OpenAPI JSON，見 README 12.7。
 
 namespace App\Console\Commands;
 
+use App\Hq\Site\Models\Site;
 use App\Support\Api\Doc\ApiAnnotationParser;
 use App\Support\Api\Doc\ApiAnnotationValidator;
+use App\Support\Hq\HqPresence;
+use App\Support\Site\SiteDatabaseConfig;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use ReflectionClass;
 use RuntimeException;
@@ -24,12 +29,18 @@ use RuntimeException;
 // 見 12.8：內部文件排除 /api/factory/*，廠商文件只含 /api/factory/*。
 class SwaggerGenerateCommand extends Command
 {
-    protected $signature = 'swagger:generate {--pretty : 輸出時排版}';
+    protected $signature = 'swagger:generate
+        {--pretty : 輸出時排版}
+        {--site= : 多站模式下，驗證 @api-portal 要查哪個子站的 portals 表}';
 
     protected $description = '產生 OpenAPI JSON（見 README 12.7）';
 
     public function handle(): int
     {
+        if (! $this->bindSiteConnection()) {
+            return self::FAILURE;
+        }
+
         $parser = app(ApiAnnotationParser::class);
         $validator = app(ApiAnnotationValidator::class);
 
@@ -84,6 +95,37 @@ class SwaggerGenerateCommand extends Command
         $this->info('已產生 storage/app/private/docs/openapi.json、openapi.partner.json、openapi.hq.json，可透過 /docs/openapi.json、/docs/openapi.partner.json、/docs/openapi.hq.json 存取（見 ApiDocsController）。');
 
         return self::SUCCESS;
+    }
+
+    // ApiAnnotationValidator 驗證 @api-portal 時會查 portals 表（site_current
+    // 連線）。CLI 沒經過 EnsureSiteContext，site_current 還是連到假主機的佔位
+    // 設定，必須先套上實際連線，否則會報 site-context-not-resolved.invalid。
+    private function bindSiteConnection(): bool
+    {
+        if (! HqPresence::available()) {
+            $connection = SiteDatabaseConfig::singleSiteConnection();
+        } else {
+            $siteId = $this->option('site');
+
+            // 沒指定就取第一個啟用的子站：各子站 portals 來自同一份種子，
+            // 這裡只是拿來驗證 portal_key 是否存在，不影響產出的文件內容。
+            $site = $siteId
+                ? Site::query()->find($siteId)
+                : Site::query()->where('is_enabled', true)->orderBy((new Site)->getKeyName())->first();
+
+            if (! $site) {
+                $this->error($siteId ? "找不到站點：{$siteId}" : '找不到任何啟用的子站，請先建立站點或帶 --site={site_id}。');
+
+                return false;
+            }
+
+            $connection = SiteDatabaseConfig::connection($site->db_name);
+        }
+
+        Config::set('database.connections.site_current', $connection);
+        DB::purge('site_current');
+
+        return true;
     }
 
     /**
@@ -239,11 +281,19 @@ class SwaggerGenerateCommand extends Command
             return;
         }
 
+        // 父層可能已先被宣告成葉節點（例如 `visitor array 來訪者明細` 之後才有
+        // `visitor[].id`），此時保留原本的 description，補上子結構即可。
         if ($isArray) {
-            $node[$key] ??= ['type' => 'array', 'items' => ['type' => 'object', 'properties' => []]];
+            $node[$key] ??= ['type' => 'array'];
+            $node[$key]['type'] = 'array';
+            $node[$key]['items'] ??= ['type' => 'object'];
+            $node[$key]['items']['type'] = 'object';
+            $node[$key]['items']['properties'] ??= [];
             $this->setNested($node[$key]['items']['properties'], $segments, $type, $description, $dicts);
         } else {
-            $node[$key] ??= ['type' => 'object', 'properties' => []];
+            $node[$key] ??= ['type' => 'object'];
+            $node[$key]['type'] = 'object';
+            $node[$key]['properties'] ??= [];
             $this->setNested($node[$key]['properties'], $segments, $type, $description, $dicts);
         }
     }
