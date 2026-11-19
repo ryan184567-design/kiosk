@@ -5,6 +5,7 @@ namespace App\Api\Guest\Services;
 
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
+use App\Api\Guest\Models\GuestSlot;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -26,6 +27,7 @@ class GuestApplyService
     ];
 
     private const CANCELLABLE_STATUSES = self::EDITABLE_STATUSES;
+
 
     /**
      * 預約單查詢條件（不分頁，分頁由 Controller 的 paginateOrGet 處理）。
@@ -77,7 +79,7 @@ class GuestApplyService
             'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
             'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'fast_pass_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
+            'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(10000000, 99999999)),
             'reservation_type' => GuestApply::TYPE_ADVANCE,
             'reservation_status' => GuestApply::STATUS_PENDING,
         ]);
@@ -114,7 +116,7 @@ class GuestApplyService
         return $apply;
     }
     /**
-     * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼，也不改審核狀態。
+     * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼。
      */
     public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
     {
@@ -141,9 +143,6 @@ class GuestApplyService
             'is_auto_remind' => (bool) ($reminder_enabled ?? false),
             // 沒開啟提醒時不保留分鐘數，避免殘留舊值
             'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
-            'reservation_id' => $this->nextAppliesNo(),
-            'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(1000000000, 9999999999)),
             'reservation_status' => GuestApply::STATUS_EDIT_PENDING,
         ]);
 
@@ -216,6 +215,59 @@ class GuestApplyService
         }
 
         $apply->update($updateData);
+
+        return $apply;
+    }
+
+    /**
+     * 以速通碼查詢「今天、已通知」的預約單。
+     */
+    public function check(string $check_value)
+    {
+        $apply = GuestApply::query()
+            ->with(['guests', 'doorplate:id,company_name,floor'])
+            ->where('reservation_status', GuestApply::STATUS_NOTIFIED)
+            ->where('visit_date', today()->toDateString())
+            ->orderBy('visit_start_time')
+            ->where('fast_pass_code', trim($check_value))
+            ->first();
+
+        if (! $apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'), 404);
+        }
+
+        return $apply;
+    }
+
+    /**
+     * 訪客報到後資料寫入與回傳
+     */
+    public function checkDone(int $id, int $slot, int $consent_form)
+    {
+        $apply = GuestApply::query()->find($id);
+        if(!$apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'));
+        }
+
+        $card_slot = GuestSlot::query()->find($slot);
+        if (! $slot) {
+            throw new RuntimeException(__('api.guest_slot.not_found'));
+        }
+
+        // 更新證件櫃狀態與資訊
+        $card_slot->update([
+            'reservation_id' => $apply->reservation_id,
+            'status' => 1,
+        ]);
+
+        // 更新預約單狀態與資訊
+        $apply->update([
+            'id_card_slot_no' => $card_slot->name,
+            'consent_form' => $consent_form,
+            'reservation_status' => GuestApply::STATUS_CHECKED_IN,
+            // 門禁卡號之後確認
+            'access_card_no' => '000000'
+        ]);
 
         return $apply;
     }

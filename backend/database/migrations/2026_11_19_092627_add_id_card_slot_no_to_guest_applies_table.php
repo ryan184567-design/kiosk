@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('guest_applies', function (Blueprint $table) {
-            $table->string('id_card_slot_no', 10)->nullable()->after('remind_time');
+            $table->string('id_card_slot_no', 10)->nullable()->after('remind_time')->comment('證件櫃位置');
         });
     }
 
