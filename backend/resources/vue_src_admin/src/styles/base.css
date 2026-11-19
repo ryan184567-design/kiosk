@@ -1,0 +1,33 @@
+/* *****************************************
+File: base.css
+Author: Callum
+Date: 2026-11-19
+Description: 子站後臺全域基礎樣式：統一所有 hover 與過渡效果為 ease 300ms。
+***************************************** */
+
+/* 過渡統一規則：任何 hover／過渡效果預設都用 ease、300ms。
+   自己寫的樣式請用 var(--app-transition-duration) 與 var(--app-transition-timing)，
+   不要再寫死 0.2s、cubic-bezier 之類的數字，之後要整體調整只改這裡。 */
+:root {
+  --app-transition-duration: 300ms;
+  --app-transition-timing: ease;
+
+  /* Element Plus 所有元件的過渡都吃這四個變數，覆蓋後元件一起跟著統一。
+     這支檔案必須在 element-plus/dist/index.css 之後載入（見 main.js）。 */
+  --el-transition-duration: var(--app-transition-duration);
+  --el-transition-duration-fast: var(--app-transition-duration);
+  --el-transition-function-ease-in-out-bezier: var(--app-transition-timing);
+  --el-transition-function-fast-bezier: var(--app-transition-timing);
+}
+
+/* 自訂的連結、按鈕（不是 Element Plus 元件的那種）也要有同樣的過渡，
+   否則 hover 換色會瞬間跳變。只列會因 hover／focus 改變的屬性，不用 all，
+   避免寬高、位置變動時也被動畫拖慢。 */
+a,
+button,
+[role='button'],
+.app-transition {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--app-transition-duration);
+  transition-timing-function: var(--app-transition-timing);
+}

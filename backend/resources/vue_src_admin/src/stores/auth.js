@@ -42,7 +42,7 @@ export const siteBranding = reactive({
 
 function applyRuntimeBranding() {
   if (siteBranding.siteName) {
-    document.title = `${siteBranding.siteName} 管理後台`;
+    document.title = `${siteBranding.siteName} 管理後臺`;
   }
 
   if (siteBranding.themeColor) {

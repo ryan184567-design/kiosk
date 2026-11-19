@@ -3,7 +3,7 @@
     <el-aside width="220px" class="layout__sidebar">
       <div class="layout__logo">
         <img v-if="siteBranding.logo" :src="siteBranding.logo" class="layout__logo-img" alt="" />
-        <span>{{ siteBranding.siteName || 'WebBase' }} 管理後台</span>
+        <span>{{ siteBranding.siteName || 'WebBase' }} 管理後臺</span>
       </div>
       <el-menu
         v-if="sidebarMenu.length"

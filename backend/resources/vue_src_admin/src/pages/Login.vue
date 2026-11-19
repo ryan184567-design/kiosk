@@ -1,7 +1,7 @@
 <template>
   <div class="login">
     <el-card class="login__card">
-      <h1>管理後台登入</h1>
+      <h1>管理後臺登入</h1>
       <el-form @submit.prevent="handleSubmit">
         <el-form-item label="帳號">
           <el-input v-model="username" autocomplete="username" />

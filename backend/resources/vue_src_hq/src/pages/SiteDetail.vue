@@ -101,7 +101,7 @@
           <p>輸出目錄：<code>{{ packageResult.output_path }}</code></p>
           <p>
             內容：{{ packageResult.file_count }} 個檔案／{{ formatSize(packageResult.size_bytes) }}
-            （前台 Vue 建置模式：{{ packageResult.vue_build_mode === 'dedicated' ? '獨立建置' : '共用建置' }}）
+            （前臺 Vue 建置模式：{{ packageResult.vue_build_mode === 'dedicated' ? '獨立建置' : '共用建置' }}）
           </p>
           <ul class="detail__notes">
             <li v-for="note in packageNotes" :key="note">{{ note }}</li>
@@ -112,7 +112,7 @@
       <section class="detail__card">
         <h2>跳轉登入</h2>
         <p class="detail__hint">
-          以目標子站的超級管理員身份直接進入該站後台，用於現場除錯／技術支援（見 DEVELOP.MD 6.11）。
+          以目標子站的超級管理員身份直接進入該站後臺，用於現場除錯／技術支援（見 DEVELOP.MD 6.11）。
           按下按鈕會核發一次性交換碼（60 秒內有效、僅能兌換一次），並導向子站落地頁
           <code>/hq-impersonate/callback</code> 完成登入；若該站已綁定網域會導向該網域，
           只有路徑前綴的站則導向「目前網域 + /站點代碼」。
@@ -128,7 +128,7 @@
         <div v-if="impersonateResult" class="detail__result">
           <p>
             正在導向子站（{{ impersonateResult.site_code }}）…
-            若沒有自動跳轉，請<a :href="impersonateResult.redirect_url">點此進入子站後台</a>。
+            若沒有自動跳轉，請<a :href="impersonateResult.redirect_url">點此進入子站後臺</a>。
           </p>
           <p>交換碼：<code>{{ impersonateResult.code }}</code>（{{ impersonateResult.expires_in }} 秒內有效，僅能兌換一次）</p>
         </div>

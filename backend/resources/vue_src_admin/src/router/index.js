@@ -31,6 +31,9 @@ const routes = [
       { path: 'plugins', name: 'plugins', meta: { title: '插件管理' }, component: () => import('../pages/plugin/PluginList.vue') },
       { path: 'portals', name: 'portals', meta: { title: '端口管理' }, component: () => import('../pages/portal/PortalList.vue') },
       { path: 'profile', name: 'profile', meta: { title: '個人資料' }, component: () => import('../pages/Profile.vue') },
+      // 訪客管理模塊：路徑對應後端 app/Api/Guest/module.json 的選單 path。
+      { path: 'guest/registration', name: 'guest-registration', meta: { title: '訪客登記' }, component: () => import('../pages/guest/VisitorRegistration.vue') },
+      { path: 'guest/applies', name: 'guest-applies', meta: { title: '預約管理' }, component: () => import('../pages/guest/ReservationList.vue') },
       // 404 放最後，見 resources/vue_src/src/router/index.js 同一段說明：
       // 找不到頁面要顯示明確的 404，不能讓 <router-view> 悄悄渲染空白。
       { path: ':pathMatch(.*)*', name: 'admin-not-found', meta: { title: '找不到頁面' }, component: () => import('../pages/NotFound.vue') },
