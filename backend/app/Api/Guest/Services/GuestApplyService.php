@@ -5,13 +5,13 @@ namespace App\Api\Guest\Services;
 
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
 use RuntimeException;
 class GuestApplyService
 {
-    /** 可以修改／取消的狀態：待審核、核准（駁回與已取消不可再動） */
+    /** 可以修改／取消的狀態：待審核、核准 */
     private const EDITABLE_STATUSES = [
         GuestApply::STATUS_PENDING,
         GuestApply::STATUS_EDIT_PENDING,
@@ -19,7 +19,42 @@ class GuestApplyService
         GuestApply::STATUS_EDIT_APPROVED,
     ];
 
+    /** 取消、拒絕的狀態，將QRcode改為null */
+    private const QRCODENULL_STATUSES = [
+        GuestApply::STATUS_CANCELLED,
+        GuestApply::STATUS_REJECTED,
+    ];
+
     private const CANCELLABLE_STATUSES = self::EDITABLE_STATUSES;
+
+    /**
+     * 預約單查詢條件（不分頁，分頁由 Controller 的 paginateOrGet 處理）。
+     */
+    public function applies(?string $keyword = null, ?string $date_from = null, ?string $date_to = null, ?int $status = null): Builder
+    {
+        $query = GuestApply::query()->with(['guests', 'doorplate:id,company_name,floor'])
+            ->orderByDesc('visit_date')->orderByDesc('visit_start_time')->orderByDesc('id');
+
+        if (! empty($keyword)) {
+            $kw = '%'.$keyword.'%';
+            $query->where(function ($q) use ($kw) {
+                $q->where('reservation_id', 'like', $kw)
+                    ->orWhere('host_name', 'like', $kw)
+                    ->orWhereHas('guests', fn ($g) => $g->where('name', 'like', $kw));
+            });
+        }
+        if (! empty($date_from)) {
+            $query->whereDate('visit_date', '>=', $date_from);
+        }
+        if (! empty($date_to)) {
+            $query->whereDate('visit_date', '<=', $date_to);
+        }
+        if (isset($status) && $status !== '') {
+            $query->where('reservation_status', (int) $status);
+        }
+
+        return $query;
+    }
 
     public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
     {
@@ -63,6 +98,22 @@ class GuestApplyService
     }
 
     /**
+     * 查看預約單：查看單筆預約單資料
+     */
+    public function show(int $id){
+
+        // 'doorplate:id,company_name,floor' 只取需要的欄位；id 一定要選，否則關聯對不起來
+        $apply = GuestApply::query()
+            ->with(['guests', 'doorplate:id,company_name,floor'])
+            ->find($id);
+
+        if (! $apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'), 404);
+        }
+
+        return $apply;
+    }
+    /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼，也不改審核狀態。
      */
     public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
@@ -92,7 +143,7 @@ class GuestApplyService
             'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
             'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'fast_pass_code' => $this->uniqueCode('visit_code', fn () => (string) random_int(10000000, 99999999)),
+            'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(1000000000, 9999999999)),
             'reservation_status' => GuestApply::STATUS_EDIT_PENDING,
         ]);
 
@@ -114,12 +165,11 @@ class GuestApplyService
     }
 
     /**
-     * 取消預約單：audit_status 設為 3，並清除 QR code 與速通碼讓它們立刻失效。
+     * 取消預約單：reservation_status 設為 60，並清除 QR code 與速通碼、門禁卡號讓它們立刻失效。
      * 資料保留不刪除（取消不是刪除）。
      */
     public function cancel(int $id): GuestApply
     {
-
         $apply = GuestApply::query()->find($id);
         if (! $apply) {
             throw new RuntimeException(__('api.guest_apply.not_found'));
@@ -131,7 +181,41 @@ class GuestApplyService
             'reservation_status' => GuestApply::STATUS_CANCELLED,
             'qr_code' => null,
             'fast_pass_code' => null,
+            'access_card_no' => null
         ]);
+
+        return $apply;
+    }
+
+    /**
+     * 修改預約單狀態
+     */
+    public function status(int $id, int $status)
+    {
+        $apply = GuestApply::query()->find($id);
+        if(!$apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'));
+        }
+
+        // 依據原先審核狀態修改核准狀態
+        $reservation_status = $apply->reservation_status;
+        if($reservation_status == 0 && $status == 1) {
+            $status = 10;
+        } elseif($reservation_status == 1 && $status == 1) {
+            $status = 11;
+        }
+
+        $updateData = [
+            'reservation_status' => $status,
+        ];
+
+        if (in_array($status, self::QRCODENULL_STATUSES, true)) {
+            $updateData['qr_code'] = null;
+            $updateData['fast_pass_code'] = null;
+            $updateData['access_card_no'] = null;
+        }
+
+        $apply->update($updateData);
 
         return $apply;
     }

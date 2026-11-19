@@ -73,6 +73,7 @@ class DataSettingController extends BaseApiController
      * @api-response-field data.floor int 樓層
      * @api-response-field data.household int 室/戶/之
      * @api-response-field data.company_name string 公司名稱
+     * @api-response-field data.status int 使用狀態
      */
     public function addDoorplate (Request $request, DataSettingService $dataSetting)
     {
@@ -106,6 +107,7 @@ class DataSettingController extends BaseApiController
      * @api-request-field floor int 樓層
      * @api-request-field household int 室/戶/之
      * @api-request-field company_name string 公司名稱
+     * @api-request-field status int 使用狀態
      * @api-request-example
      * {"id": 1, "doorplate": 132, "floor": 2, "household": 3, "company_name":"有限公司" }
      * @api-response-field data.id int 門牌ID
@@ -113,6 +115,7 @@ class DataSettingController extends BaseApiController
      * @api-response-field data.floor int 樓層
      * @api-response-field data.household int 室/戶/之
      * @api-response-field data.company_name string 公司名稱
+     * @api-response-field data.status int 使用狀態
      */
     public function updateDoorplate(Request $request, DataSettingService $dataSetting)
     {
@@ -121,7 +124,8 @@ class DataSettingController extends BaseApiController
             'doorplate' => 'required|int|max:3',
 	        'floor'	=> 'required|int|max:2',
 	        'household' => 'required|int|max:2',
-            'company_name'=> 'string|max:255'
+            'company_name'=> 'required|string|max:255',
+            'status' => 'required|int|max:1',
         ]);
 
         $doorplate = $dataSetting->updateDoorplate(
@@ -130,6 +134,7 @@ class DataSettingController extends BaseApiController
             $data['floor'],
             $data['household'],
             $data['company_name'],
+            $data['status'],
         );
 
         return $this->success($this->presentDoorplate($doorplate), 201);
@@ -188,13 +193,13 @@ class DataSettingController extends BaseApiController
         if(isset($request->bid) && $request->bid != '' ){
             $floor = Floor::join('buildings','floors.bid','=','buildings.id')
                 ->select('floors.*','buildings.name AS bname')
-                ->where('buildings.status','=',0)
+                ->where('buildings.status','=', 1)
                 ->where('floors.bid','=', $request->bid)
                 ->get();
         }else{
             $floor = Floor::join('buildings','floors.bid','=','buildings.id')
                 ->select('floors.*','buildings.name AS bname')
-                ->where('buildings.status','=',0)
+                ->where('buildings.status','=', 1)
                 ->get();
         }
 

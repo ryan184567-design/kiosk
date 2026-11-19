@@ -18,7 +18,7 @@ class DataSettingService
         $data->name = $name;
         $data->on_floor = $onfloor;
         $data->under_floor = $underfloor;
-        $data->status = 0;
+        $data->status = 1;
         $data->save();
 
         $new_id = $data->id;
@@ -28,7 +28,7 @@ class DataSettingService
             $data2->bid = $new_id;
             $data2->location = "地上";
             $data2->floor = $i;
-            $data2->status = 0;
+            $data2->status = 1;
             $data2->save();
         }
         // 地下
@@ -37,7 +37,7 @@ class DataSettingService
             $data2->bid = $new_id;
             $data2->location = "地下";
             $data2->floor = $i;
-            $data2->status = 0;
+            $data2->status = 1;
             $data2->save();
         }
 
@@ -57,13 +57,13 @@ class DataSettingService
             'floor' => $floor,
             'household' => $household,
             'company_name' => $company_name,
-            'status' => 0,
+            'status' => 1,
         ]);
 
         return $doorplate;
     }
 
-    public function updateDoorplate(int $id, int $doorplate, int $floor, int $household,  string $company_name): Doorplate
+    public function updateDoorplate(int $id, int $doorplate, int $floor, int $household, string $company_name, int $status): Doorplate
     {
         $check_door = false;
         $Data = Doorplate::where('id',$id)->first();
@@ -75,8 +75,7 @@ class DataSettingService
                                     ->exists();
         }
 
-        if ($check_door)
-        {
+        if ($check_door) {
             throw new RuntimeException(__('api.data_setting.doorplate_exists'));
         }
 
@@ -87,7 +86,7 @@ class DataSettingService
             'floor'     => $floor,
             'household' => $household,
             'company_name' => $company_name,
-            'status'    => 0,
+            'status'    => $status,
         ]);
 
         return $doorplateData;

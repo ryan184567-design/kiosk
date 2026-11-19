@@ -32,6 +32,7 @@ class GuestApply extends Model
     public const STATUS_CHECKED_IN = 40;        // 已到
     public const STATUS_CHECKED_OUT = 50;       // 已離場
     public const STATUS_CANCELLED = 60;         // 已取消
+    public const STATUS_REJECTED = 70;          // 已拒絕
 
     // 應用層一律用 site_current，不在 Model 處理實際 site_id（見 DEVELOP.MD 6.4）
     protected $connection = 'site_current';

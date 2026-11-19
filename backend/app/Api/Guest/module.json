@@ -60,6 +60,17 @@
             "permission_code": "api.guest.reports",
             "group": "group-account",
             "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "slots",
+            "title": "證件櫃",
+            "subtitle": "證件櫃資料建立",
+            "icon": "Menu",
+            "path": "/guest/slots",
+            "permission_code": "api.guest_slot.index",
+            "group": "group-account",
+            "sort": 0
         }
     ]
 }
