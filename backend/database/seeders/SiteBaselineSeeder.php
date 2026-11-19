@@ -118,6 +118,8 @@ class SiteBaselineSeeder extends Seeder
         $groups = [
             ['key' => 'group-account', 'title' => '帳號與權限', 'subtitle' => '使用者、角色與權限指派', 'icon' => 'UserFilled', 'sort' => 1],
             ['key' => 'group-system', 'title' => '系統設定', 'subtitle' => '選單、字典與環境參數', 'icon' => 'Setting', 'sort' => 2],
+            // 訪客管理模塊（app/Api/Guest/module.json）的選單分組；未開通該模塊時底下沒有子節點，不會顯示。
+            ['key' => 'group-guest', 'title' => '訪客管理', 'subtitle' => '預約、登記、審核與報表', 'icon' => 'Avatar', 'sort' => 3],
         ];
 
         foreach ($groups as $group) {

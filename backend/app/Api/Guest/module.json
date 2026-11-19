@@ -14,7 +14,7 @@
             "icon": "Menu",
             "path": "/guest/registration",
             "permission_code": "api.guest.registration",
-            "group": "group-account",
+            "group": "group-guest",
             "sort": 0
         },
         {
@@ -25,8 +25,8 @@
             "icon": "Menu",
             "path": "/guest/approvals",
             "permission_code": "api.guest.approvals",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-guest",
+            "sort": 1
         },
         {
             "portal": "admin",
@@ -36,8 +36,8 @@
             "icon": "Menu",
             "path": "/guest/records",
             "permission_code": "api.guest.records",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-guest",
+            "sort": 2
         },
         {
             "portal": "admin",
@@ -47,8 +47,8 @@
             "icon": "Menu",
             "path": "/guest/applies",
             "permission_code": "api.guest.index",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-guest",
+            "sort": 3
         },
         {
             "portal": "admin",
@@ -58,8 +58,8 @@
             "icon": "Menu",
             "path": "/guest/reports",
             "permission_code": "api.guest.reports",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-guest",
+            "sort": 4
         },
         {
             "portal": "admin",
@@ -69,8 +69,8 @@
             "icon": "Menu",
             "path": "/guest/slots",
             "permission_code": "api.guest.slotIndex",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-guest",
+            "sort": 5
         }
     ]
 }
