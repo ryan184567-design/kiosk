@@ -3,7 +3,7 @@
     <div v-if="siteConfig.loaded && siteConfig.siteStatus === '0'" class="maintenance">
       <img v-if="siteConfig.logo" :src="siteConfig.logo" alt="" class="site-brand__logo" />
       <h1>{{ siteConfig.siteName || 'WebBase' }}</h1>
-      <p>站台維護中，請稍後再訪問。</p>
+      <p>站臺維護中，請稍後再訪問。</p>
     </div>
 
     <template v-else>

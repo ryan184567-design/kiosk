@@ -630,7 +630,7 @@ onMounted(async () => {
   background: #fff;
   border: 1px solid #ebeef5;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-  transition: all 0.2s;
+  transition: all var(--app-transition-duration) var(--app-transition-timing);
 }
 
 .menu-node:hover {

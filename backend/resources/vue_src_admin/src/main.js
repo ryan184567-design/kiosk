@@ -9,6 +9,13 @@ import { createApp } from 'vue';
 import ElementPlus from 'element-plus';
 import zhTw from 'element-plus/es/locale/lang/zh-tw.mjs';
 import 'element-plus/dist/index.css';
+// 全站圖示統一用 Font Awesome Free（font-family 字型檔版）：CSS 是外部檔案、
+// 字型走同源檔案，符合嚴格 CSP 的 style-src／font-src 'self'；不要改成
+// SVG 核心套件，它會在執行期動態注入 <style>，會被 CSP 擋下。
+import '@fortawesome/fontawesome-free/css/all.min.css';
+// 全域基礎樣式（統一 hover／過渡為 ease 300ms），要放在 element-plus 樣式之後，
+// 才能覆蓋它的過渡變數。
+import './styles/base.css';
 import App from './App.vue';
 import { createAppRouter } from './router';
 import { fetchPortalConfig, fetchSiteCode } from './stores/auth';

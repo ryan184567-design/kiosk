@@ -2,7 +2,7 @@
   <div class="dashboard">
     <div class="dashboard__welcome">
       <h2>哈囉，{{ auth.name || auth.username }}</h2>
-      <p>這是管理後台首頁，下面是常用功能的捷徑，實際看得到哪些項目依你目前的權限而定。</p>
+      <p>這是管理後臺首頁，下面是常用功能的捷徑，實際看得到哪些項目依你目前的權限而定。</p>
     </div>
 
     <div class="dashboard__grid">
@@ -47,7 +47,7 @@ const shortcuts = [
   { name: 'roles', title: '角色管理', subtitle: '角色與權限碼指派', icon: Lock },
   { name: 'menus', title: '選單管理', subtitle: '側邊欄選單維護', icon: Menu },
   { name: 'dictionaries', title: '資料字典', subtitle: '可管理的下拉選項', icon: List },
-  { name: 'system-config', title: '系統環境配置', subtitle: '頁面設置等站台參數', icon: Tools },
+  { name: 'system-config', title: '系統環境配置', subtitle: '頁面設置等站臺參數', icon: Tools },
   { name: 'plugins', title: '插件管理', subtitle: 'AD／SSO 等對接插件', icon: Connection },
   { name: 'portals', title: '端口管理', subtitle: '登入端口與訪客瀏覽設定', icon: Switch },
 ];
