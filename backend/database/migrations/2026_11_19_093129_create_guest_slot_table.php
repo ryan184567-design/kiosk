@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name', 50)->comment('證件櫃名稱');
             $table->text('remark')->nullable()->comment('備註');
-            $table->boolean('status')->default(1)->comment('使用狀態(0:未使用、1:使用中)');
+            $table->boolean('status')->default(0)->comment('使用狀態(0:未使用、1:使用中)');
             $table->timestamps();
             $table->softDeletes();
         });

@@ -14,7 +14,7 @@
             "icon": "Menu",
             "path": "/data-setting/building",
             "permission_code": "api.data_setting.index",
-            "group": "group-account",
+            "group": "group-setting",
             "sort": 0
         },
         {
@@ -25,8 +25,8 @@
             "icon": "Menu",
             "path": "/data-setting/floor",
             "permission_code": "api.data_setting.index",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-setting",
+            "sort": 1
         },
         {
             "portal": "admin",
@@ -36,8 +36,8 @@
             "icon": "Menu",
             "path": "/data-setting/doorplate",
             "permission_code": "api.data_setting.index",
-            "group": "group-account",
-            "sort": 0
+            "group": "group-setting",
+            "sort": 2
         }
     ]
 }
