@@ -14,6 +14,7 @@ class GuestSlot extends Model
 
     protected $fillable = [
         'name',
+        'reservation_id',
         'remark',
         'status'
     ];

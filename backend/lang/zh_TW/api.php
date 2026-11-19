@@ -135,6 +135,7 @@ return [
         'already_checked_in' => '此預約單已報到，不可修改或取消。',
         'visitor_count_mismatch' => '來訪者名單共 :count 位，超過來訪人數 :max 人。',
         'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
+        'invalid_check_type' => '請選擇使用qrcode或電話查詢'
     ],
 
     'guest_slot' => [

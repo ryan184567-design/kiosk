@@ -46,6 +46,7 @@ class GuestApply extends Model
         'visit_date', 'visit_start_time', 'visit_end_time', 'guest_count',
         'visit_reason', 'remark',
         'is_email_notify', 'is_sms_notify', 'is_auto_remind', 'remind_time',
+        'consent_form', 'id_card_slot_no',
         'qr_code', 'fast_pass_code', 'access_card_no',
         'check_in_at', 'check_out_at', 'reservation_status',
     ];

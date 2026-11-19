@@ -14,6 +14,8 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.update')->put('/{id}', [GuestApplyController::class, 'update'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.cancel')->put('/{id}/cancel', [GuestApplyController::class, 'cancel'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.statusChange')->put('/{id}/status', [GuestApplyController::class, 'statusChange'])->whereNumber('id');
+        Route::middleware('permission.api:api.guest.check')->put('/check', [GuestApplyController::class, 'check']);
+        Route::middleware('permission.api:api.guest.checkDone')->put('/checkDone', [GuestApplyController::class, 'checkDone']);
     });
 
     Route::prefix('slots')->group(function () {
