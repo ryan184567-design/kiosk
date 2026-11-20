@@ -13,6 +13,8 @@ import WalkInFloorView from '@/views/walkin/FloorView.vue'
 import WalkInCompanyView from '@/views/walkin/CompanyView.vue'
 import WalkInFormView from '@/views/walkin/FormView.vue'
 import WalkInDoneView from '@/views/walkin/DoneView.vue'
+import CheckOutScanView from '@/views/checkout/ScanView.vue'
+import CheckOutResultView from '@/views/checkout/ResultView.vue'
 import NotFoundView from '@/views/NotFoundView.vue'
 import StaffView from '@/views/StaffView.vue'
 import { isLockerComplete, needsLocker, visit } from '@/stores/visit'
@@ -98,6 +100,20 @@ const routes = [
     meta: { mode: 'walkIn', requires: 'registered' },
   },
 
+  // ── 離場 ──
+  {
+    path: '/check-out',
+    name: 'check-out-scan',
+    component: CheckOutScanView,
+    meta: { mode: 'checkOut' },
+  },
+  {
+    path: '/check-out/result',
+    name: 'check-out-result',
+    component: CheckOutResultView,
+    meta: { mode: 'checkOut', requires: 'checkOutCode' },
+  },
+
   // ── 櫃台螢幕 ──
   {
     path: '/staff',
@@ -121,6 +137,7 @@ const STEP_CHECKS = {
   floor: () => !!visit.walkIn.floor,
   company: () => !!visit.walkIn.floor && !!visit.walkIn.company,
   registered: () => !!visit.registration,
+  checkOutCode: () => !!visit.checkOut.code,
 }
 
 const router = createRouter({

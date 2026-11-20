@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Api\Guest\Controllers\GuestApplyController;
 use App\Api\Guest\Controllers\GuestSlotController;
-use App\Api\Guest\Controllers\VisitorMachineController;
 use App\Api\Guest\Controllers\FactoryGuestApplyController;
 
 
@@ -16,9 +15,7 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.update')->put('/{id}', [GuestApplyController::class, 'update'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.cancel')->put('/{id}/cancel', [GuestApplyController::class, 'cancel'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.statusChange')->put('/{id}/status', [GuestApplyController::class, 'statusChange'])->whereNumber('id');
-
-        Route::put('/check', [VisitorMachineController::class, 'check']);
-        Route::put('/checkDone', [VisitorMachineController::class, 'checkDone']);
+        Route::middleware('permission.api:api.guest.destroy')->delete('/{id}', [GuestApplyController::class, 'destroy'])->whereNumber('id');
     });
 
     Route::prefix('slots')->group(function () {
@@ -34,4 +31,8 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
 // 新增接口後執行 `php artisan factory:sync-scopes` 登記 scope。
 Route::prefix('factory/guest')->middleware(['module:guest', 'factory.auth'])->group(function () {
     Route::get('applies', [FactoryGuestApplyController::class, 'index'])->middleware('factory.scope:guest.apply.read');
+    Route::post('done', [FactoryGuestApplyController::class, 'done'])->middleware('factory.scope:guest.apply.done');
+    Route::post('create', [FactoryGuestApplyController::class, 'create'])->middleware('factory.scope:guest.apply.create');
+    Route::post('slot', [FactoryGuestApplyController::class, 'slot'])->middleware('factory.scope:guest.apply.slot');
+    Route::post('leave', [FactoryGuestApplyController::class, 'leave'])->middleware('factory.scope:guest.apply.leave');
 });

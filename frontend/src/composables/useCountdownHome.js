@@ -5,7 +5,11 @@ import { resetVisit } from '@/stores/visit'
 import { DEFAULT_LOCALE, setLocale } from '@/i18n'
 import { debug } from '@/utils/logger'
 
-export function useCountdownHome(seconds = 10) {
+/**
+ * @param {number} seconds 倒數秒數
+ * @param {{ autoStart?: boolean }} [options] autoStart=false 時不在掛載時倒數，需自行呼叫 start()
+ */
+export function useCountdownHome(seconds = 10, { autoStart = true } = {}) {
   const router = useRouter()
   const remaining = ref(seconds)
   let timer
@@ -18,13 +22,20 @@ export function useCountdownHome(seconds = 10) {
     router.replace('/')
   }
 
-  onMounted(() => {
+  /** 開始（或重新開始）倒數 */
+  const start = () => {
+    clearInterval(timer)
+    remaining.value = seconds
     timer = setInterval(() => {
       remaining.value -= 1
       if (remaining.value <= 0) finish()
     }, 1000)
+  }
+
+  onMounted(() => {
+    if (autoStart) start()
   })
   onBeforeUnmount(() => clearInterval(timer))
 
-  return { remaining, finish }
+  return { remaining, finish, start }
 }

@@ -14,6 +14,8 @@ export default {
     appointmentDesc: 'Scan QR Code\nor enter pass code',
     walkIn: 'Walk-in',
     walkInDesc: 'Self registration',
+    checkOut: 'Check-out',
+    checkOutDesc: 'Tap your visitor card\nor scan your pass QR Code',
   },
   scan: {
     title: 'Appointment',
@@ -136,6 +138,39 @@ export default {
     badgeNo: 'Pass No.',
     countdown: 'Returning to home in {n}s',
     finish: 'Done',
+  },
+  checkOut: {
+    title: 'Check-out',
+    subtitle: 'Tap your access card (visitor badge) or scan your pass QR Code',
+    card: 'Tap access card',
+    cardHint: 'Hold your visitor badge near the card reader',
+    qr: 'Scan QR Code',
+    qrHint: 'Hold your pass QR Code to the scanner',
+    processing: 'Processing check-out...',
+    successTitle: 'Check-out complete',
+    successHint: 'Thank you for visiting. Have a nice day!',
+    visitor: 'Visitor',
+    time: 'Check-out time',
+    lockerReminder: 'Please collect your ID from locker {slot}',
+    rescan: 'Scan again',
+    errors: {
+      notFound: {
+        title: 'Visitor record not found',
+        hint: 'Please check your card or QR Code, or contact the front desk',
+      },
+      alreadyCheckedOut: {
+        title: 'Already checked out',
+        hint: 'This visit has already been checked out. Please contact the front desk if you need help',
+      },
+      notCheckedIn: {
+        title: 'Not checked in',
+        hint: 'This appointment has not been checked in yet. Please contact the front desk',
+      },
+      failed: {
+        title: 'Check-out failed',
+        hint: 'The system is temporarily unavailable. Please try again later or contact the front desk',
+      },
+    },
   },
   notFound: {
     title: 'Page not found',

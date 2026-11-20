@@ -5,11 +5,47 @@ namespace App\Api\DataSetting\Services;
 use App\Api\DataSetting\Models\Building;
 use App\Api\DataSetting\Models\Doorplate;
 use App\Api\DataSetting\Models\Floor;
+use Illuminate\Contracts\Database\Eloquent\Builder;
 
 use RuntimeException;
 
 class DataSettingService
 {
+    public function doorplate(): Builder
+    {
+        return Doorplate::query();
+    }
+
+    public function doorplateApi()
+    {
+        return Doorplate::query()->get();
+    }
+
+    public function building(): Builder
+    {
+        return Building::query();
+    }
+
+    public function floor(?int $bid = null)
+    {
+        $building = Building::where('status', 1)->select('id','name')->get();
+
+        if(isset($bid) && $bid != '' ){
+            $floor = Floor::join('buildings','floors.bid','=','buildings.id')
+                ->select('floors.*','buildings.name AS bname')
+                ->where('buildings.status','=', 1)
+                ->where('floors.bid','=', $bid)
+                ->get();
+        }else{
+            $floor = Floor::join('buildings','floors.bid','=','buildings.id')
+                ->select('floors.*','buildings.name AS bname')
+                ->where('buildings.status','=', 1)
+                ->get();
+        }
+
+        return ['floor' => $floor, 'building' => $building];
+    }
+
     // 業務邏輯放這裡，見 3.1「Web 遵循 MVC；API 遵循 MSC」。
     public function addBuilding(string $name, int $onfloor, int $underfloor): Building
     {

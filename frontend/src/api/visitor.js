@@ -3,6 +3,7 @@
 // 模擬規則：
 //   - 速通碼結尾為 0000 → 查無預約
 //   - 其他速通碼 → 驗證成功
+//   - 離場的模擬規則見 checkOutImpl
 //
 // 所有 API 皆經 withDebugLog 包裝，debug 模式下會記錄參數、結果與耗時（見檔案最下方 export）
 
@@ -157,6 +158,40 @@ async function registerWalkInImpl(data) {
   return { id: `W${Date.now()}`, status: 'pending', ...data }
 }
 
+// ── 離場 ───────────────────────────────────────────
+
+/**
+ * 訪客離場：送出掃描到的門禁卡號（訪客證）或速通碼（預約 QR Code），由後端判斷類型並完成離場
+ * 後端應記錄離場時間（check_out_at）、將預約單狀態改為已離場，並回傳證件存放格位以提醒訪客取回證件
+ *
+ * 模擬規則：
+ *   - 結尾為 0000 → 查無訪客紀錄（NOT_FOUND）
+ *   - 結尾為 1111 → 已完成離場（ALREADY_CHECKED_OUT）
+ *   - 結尾為 2222 → 尚未報到（NOT_CHECKED_IN）
+ *   - 其他 → 離場成功
+ *
+ * @param {{ code: string }} data
+ * @returns {{ visitorName: string, company: string, checkOutAt: string, locker: { id, label } | null }}
+ * @throws {Error} err.code 為 NOT_FOUND | ALREADY_CHECKED_OUT | NOT_CHECKED_IN
+ */
+async function checkOutImpl({ code }) {
+  await delay(1200)
+  const fail = (errCode, msg) => {
+    const err = new Error(msg)
+    err.code = errCode
+    throw err
+  }
+  if (!code || code.endsWith('0000')) fail('NOT_FOUND', 'Visitor record not found')
+  if (code.endsWith('1111')) fail('ALREADY_CHECKED_OUT', 'Visitor already checked out')
+  if (code.endsWith('2222')) fail('NOT_CHECKED_IN', 'Visitor has not checked in')
+  return {
+    visitorName: '王小明',
+    company: '範例股份有限公司',
+    checkOutAt: new Date().toISOString(),
+    locker: { id: 'A03', label: 'A03' },
+  }
+}
+
 // ── 對外提供（含 debug 記錄） ─────────────────────────
 
 export const verifyAppointment = withDebugLog('verifyAppointment', verifyAppointmentImpl)
@@ -170,3 +205,4 @@ export const notifyHost = withDebugLog('notifyHost', notifyHostImpl)
 export const getFloors = withDebugLog('getFloors', getFloorsImpl)
 export const getCompanies = withDebugLog('getCompanies', getCompaniesImpl)
 export const registerWalkIn = withDebugLog('registerWalkIn', registerWalkInImpl)
+export const checkOut = withDebugLog('checkOut', checkOutImpl)

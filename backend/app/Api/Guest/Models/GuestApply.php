@@ -20,7 +20,7 @@ class GuestApply extends Model
 {
     use HasFactory, SoftDeletes;
 
-    /** 預約類型 reservation_type：0=事前預約, 1=現場預約（注意 migration 預設值是 1） */
+    /** 預約類型 reservation_type：0=事前預約, 1=現場預約 */
     public const TYPE_ADVANCE = 0;
     public const TYPE_ONSITE = 1;
 

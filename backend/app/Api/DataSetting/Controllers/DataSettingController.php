@@ -41,15 +41,17 @@ class DataSettingController extends BaseApiController
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function doorplate(Request $request)
+    public function doorplate(Request $request, DataSettingService $dataSetting)
     {
         $result = $this->paginateOrGet(
-            Doorplate::query(),
+            $dataSetting->doorplate(),
             (int) $request->integer('per_page', -1),
             (int) $request->integer('page', 1),
         );
 
-        $result['items'] = collect($result['items'])->map(fn (Doorplate $doorplate) => $this->presentDoorplate($doorplate))->all();
+        $result['items'] = collect($result['items'])
+            ->map(fn ($doorplate) => $this->presentDoorplate($doorplate))
+            ->all();
 
         return $this->success($result);
     }
@@ -75,7 +77,7 @@ class DataSettingController extends BaseApiController
      * @api-response-field data.company_name string 公司名稱
      * @api-response-field data.status int 使用狀態
      */
-    public function addDoorplate (Request $request, DataSettingService $dataSetting)
+    public function addDoorplate(Request $request, DataSettingService $dataSetting)
     {
         $data = $this->validateInput($request, [
             'doorplate' => 'required|int|max:3',
@@ -186,26 +188,17 @@ class DataSettingController extends BaseApiController
      * @api-response-field building[].id string 樓別ID
      * @api-response-field building[].name string 大樓名稱
      */
-    public function floor(Request $request)
+    public function floor(Request $request, DataSettingService $dataSetting)
     {
-        $building = Building::where('status','0')->select('id','name')->get();
+        $data = $this->validateInput($request, [
+            'bid' => 'nullable|int|max:2',
+        ]);
 
-        if(isset($request->bid) && $request->bid != '' ){
-            $floor = Floor::join('buildings','floors.bid','=','buildings.id')
-                ->select('floors.*','buildings.name AS bname')
-                ->where('buildings.status','=', 1)
-                ->where('floors.bid','=', $request->bid)
-                ->get();
-        }else{
-            $floor = Floor::join('buildings','floors.bid','=','buildings.id')
-                ->select('floors.*','buildings.name AS bname')
-                ->where('buildings.status','=', 1)
-                ->get();
-        }
+        $result = $dataSetting->floor($data['bid'] ?? null);
 
         $data = [
-            'floor'=>$floor,
-            'building'=>$building
+            'floor'=>$result['floor'],
+            'building'=>$result['building']
         ];
 
         return $this->success($data);
@@ -228,10 +221,10 @@ class DataSettingController extends BaseApiController
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function building(Request $request)
+    public function building(Request $request, DataSettingService $dataSetting)
     {
         $result = $this->paginateOrGet(
-            Building::query(),
+            $dataSetting->building(),
             (int) $request->integer('per_page', -1),
             (int) $request->integer('page', 1),
         );

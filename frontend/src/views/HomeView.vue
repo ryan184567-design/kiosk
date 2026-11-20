@@ -1,7 +1,7 @@
 <script setup>
-// ① 首頁：選擇到訪方式（有預約 / 無預約）與語系
+// ① 首頁：選擇到訪方式（有預約 / 無預約 / 離場）與語系
 import { useRouter } from 'vue-router'
-import { QrcodeOutlined, UserOutlined } from '@ant-design/icons-vue'
+import { LogoutOutlined, QrcodeOutlined, UserOutlined } from '@ant-design/icons-vue'
 import KioskLayout from '@/components/KioskLayout.vue'
 import { resetVisit, visit } from '@/stores/visit'
 import { LOCALES, currentLocale, setLocale } from '@/i18n'
@@ -9,11 +9,17 @@ import { debug } from '@/utils/logger'
 
 const router = useRouter()
 
+const MODES = {
+  appointment: { label: '有預約', path: '/appointment' },
+  walkIn: { label: '無預約', path: '/walk-in' },
+  checkOut: { label: '離場', path: '/check-out' },
+}
+
 const start = (mode) => {
   resetVisit()
   visit.mode = mode
-  debug('Flow', `① 選擇到訪方式：${mode === 'appointment' ? '有預約' : '無預約'}`)
-  router.push(mode === 'appointment' ? '/appointment' : '/walk-in')
+  debug('Flow', `① 選擇到訪方式：${MODES[mode].label}`)
+  router.push(MODES[mode].path)
 }
 </script>
 
@@ -33,6 +39,11 @@ const start = (mode) => {
           <UserOutlined class="option__icon" />
           <span class="option__title">{{ $t('home.walkIn') }}</span>
           <span class="option__desc">{{ $t('home.walkInDesc') }}</span>
+        </button>
+        <button class="option option--secondary" @click="start('checkOut')">
+          <LogoutOutlined class="option__icon" />
+          <span class="option__title">{{ $t('home.checkOut') }}</span>
+          <span class="option__desc">{{ $t('home.checkOutDesc') }}</span>
         </button>
       </div>
     </div>
@@ -80,7 +91,7 @@ const start = (mode) => {
   gap: clamp(20px, 3vw, 40px);
 }
 .option {
-  width: clamp(240px, 30vw, 360px);
+  width: clamp(220px, 26vw, 340px);
   aspect-ratio: 1 / 0.9;
   display: flex;
   flex-direction: column;
@@ -115,8 +126,7 @@ const start = (mode) => {
 }
 .option--secondary .option__icon {
   color: var(--brand);
-}
-.option__title {
+}.option__title {
   font-size: clamp(26px, 2.8vw, 34px);
   font-weight: 800;
 }

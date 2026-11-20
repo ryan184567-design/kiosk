@@ -28,13 +28,7 @@ class GuestApplyController extends BaseApiController
      * @api-portal admin
      * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消
      * @api-dict guest_apply_reservation_type 0=事前預約,1=現場預約
-     * @api-request-field keyword string 關鍵字（預約單號／受訪人／來訪者姓名），選填
-     * @api-request-field date_from string 預約日期起，格式 YYYY-MM-DD，選填
-     * @api-request-field date_to string 預約日期迄，格式 YYYY-MM-DD，不可早於 date_from，選填
-     * @api-request-field reservation_status dict:guest_apply_reservation_status 預約單狀態，選填，不傳代表全部
-     * @api-request-field page int 頁碼，從 1 開始，預設 1
-     * @api-request-field per_page int 每頁筆數，預設 10，最大 200；-1 代表不分頁
-     * @api-request-example {"keyword": "張先生","date_from":"2026-11-01","date_to":"2026-11-30","reservation_status": 0}
+     * @api-no-request-body
      * @api-response-field data.items[].id int 預約單ID
      * @api-response-field data.items[].reservation_id string 預約單號
      * @api-response-field data.items[].reservation_type dict:guest_apply_reservation_type 預約類型
@@ -73,10 +67,10 @@ class GuestApplyController extends BaseApiController
 
         $result = $this->paginateOrGet(
             $service->applies(
-                $data['keyword'],
-                $data['date_from'],
-                $data['date_to'],
-                $data['reservation_status']
+                $data['keyword'] ?? null,
+                $data['date_from'] ?? null,
+                $data['date_to'] ?? null,
+                isset($data['reservation_status']) ? (int) $data['reservation_status'] : null,
             ),
             $perPage === 0 ? 10 : $perPage,
             (int) ($data['page'] ?? 1),
@@ -139,6 +133,9 @@ class GuestApplyController extends BaseApiController
     {
         $data = $this->validateInput($request, $this->rules());
 
+        $data['reservation_type'] = GuestApply::TYPE_ADVANCE;
+        $data['reservation_status'] = GuestApply::STATUS_PENDING;
+
         $guestApply = $service->create(
             $data['doorplate_id'],
             $data['visit_date'],
@@ -152,7 +149,9 @@ class GuestApplyController extends BaseApiController
             $data['is_sms_notify'],
             $data['is_auto_remind'],
             $data['remind_time'],
-            $data['visitor']
+            $data['visitor'],
+            $data['reservation_type'],
+            $data['reservation_status'],
         );
 
         return $this->success($this->presentGuestApply($guestApply), 201);
@@ -282,7 +281,7 @@ class GuestApplyController extends BaseApiController
     /**
      * @api-method PUT
      * @api-path /api/guest/applies/{id}/cancel
-     * @api-tag 訪客預約
+     * @api-tag GuestApply
      * @api-summary 取消訪客預約
      * @api-portal admin
      * @api-description
@@ -323,17 +322,26 @@ class GuestApplyController extends BaseApiController
     }
 
     /**
-     * Remove the specified resource from storage.
+     * @api-method DELETE
+     * @api-path /api/guest/applies/{id}
+     * @api-tag GuestApply
+     * @api-summary 刪除訪客預約單
+     * @api-portal admin
+     * @api-description
+     * 刪除訪客預約單
+     * @api-no-request-body
+     * @api-response-empty
      */
-    public function destroy(string $id)
+    public function destroy(string $id, GuestApplyService $service)
     {
-        //
+        $service->delete($id);
+
+        return $this->success();
     }
 
     private function rules(): array
     {
         return [
-            // 假設門牌表為 site_current 連線下的 doorplates；實際表名不同請改這一行
             'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
             'visit_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'visit_start_time' => ['required', 'date_format:H:i'],
