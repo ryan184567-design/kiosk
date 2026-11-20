@@ -17,27 +17,20 @@ class FactoryDataSettingController extends BaseApiController
 
     /**
      * @api-method GET
-     * @api-path /api/factory/data_setting
+     * @api-path /api/factory/data_setting/index
      * @api-tag Factory
      * @api-summary 查詢樓層、門牌、公司名稱
      * @api-portal *
      * @api-auth app
-     * @api-scope setting.apply.read
+     * @api-scope data_setting.doorplate.index
      * @api-description
-     * 訪客機以速通碼查詢「今天、已通知」的預約單，只回傳訪客機需要的欄位。
-     * 查無資料（速通碼錯誤、非今天、狀態不符、已取消）回 404。
-     * 查詢參數（query string）：`fast_pass_code`（必填，速通碼），例如 `GET /api/factory/guest/applies?fast_pass_code=12345678`。
+     * 訪客機查詢目前樓層、門牌、公司名稱資訊
      * @api-no-request-body
-     * @api-response-field data.id int 預約單ID
-     * @api-response-field data.reservation_id string 預約單號
-     * @api-response-field data.host_name string 受訪人
-     * @api-response-field data.host_company_name string 受訪公司名稱，門牌不存在時為 null
-     * @api-response-field data.guest_count int 訪客人數
-     * @api-response-field data.visitor array 來訪者明細
-     * @api-response-field data.visitor[].id int 來訪者ID
-     * @api-response-field data.visitor[].guest_name string 來訪者姓名
-     * @api-response-field data.visitor[].guest_company_name string 公司名稱，未填為 null
-     * @api-response-field data.visitor[].guest_phone string 手機號碼
+     * @api-response-field data.id int 門牌ID
+     * @api-response-field data.doorplate int 門牌
+     * @api-response-field data.floor int 樓層
+     * @api-response-field data.household int 室/戶/之
+     * @api-response-field data.company_name string 公司名稱
      */
     public function index(Request $request, DataSettingService $service)
     {
@@ -67,7 +60,6 @@ class FactoryDataSettingController extends BaseApiController
             'floor' => $doorplate->floor,
             'household' => $doorplate->household,
             'company_name' => $doorplate->company_name,
-            'status' => $doorplate->status
         ];
     }
 
