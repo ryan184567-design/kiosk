@@ -139,6 +139,9 @@ class GuestApplyController extends BaseApiController
     {
         $data = $this->validateInput($request, $this->rules());
 
+        $data['reservation_type'] = GuestApply::TYPE_ADVANCE;
+        $data['reservation_status'] = GuestApply::STATUS_PENDING;
+
         $guestApply = $service->create(
             $data['doorplate_id'],
             $data['visit_date'],
@@ -152,7 +155,9 @@ class GuestApplyController extends BaseApiController
             $data['is_sms_notify'],
             $data['is_auto_remind'],
             $data['remind_time'],
-            $data['visitor']
+            $data['visitor'],
+            $data['reservation_type'],
+            $data['reservation_status'],
         );
 
         return $this->success($this->presentGuestApply($guestApply), 201);
@@ -333,7 +338,6 @@ class GuestApplyController extends BaseApiController
     private function rules(): array
     {
         return [
-            // 假設門牌表為 site_current 連線下的 doorplates；實際表名不同請改這一行
             'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
             'visit_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'visit_start_time' => ['required', 'date_format:H:i'],

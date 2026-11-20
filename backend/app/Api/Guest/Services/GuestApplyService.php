@@ -7,6 +7,7 @@ use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 use App\Api\Guest\Models\GuestSlot;
 use Illuminate\Contracts\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 use RuntimeException;
@@ -58,7 +59,7 @@ class GuestApplyService
         return $query;
     }
 
-    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
+    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, int $reservation_type, int $reservation_status): GuestApply
     {
         $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count, $visitors);
@@ -80,8 +81,8 @@ class GuestApplyService
             'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
             'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(10000000, 99999999)),
-            'reservation_type' => GuestApply::TYPE_ADVANCE,
-            'reservation_status' => GuestApply::STATUS_PENDING,
+            'reservation_type' => $reservation_type,
+            'reservation_status' => $reservation_status,
         ]);
 
         foreach ($visitors as $v) {
@@ -242,32 +243,42 @@ class GuestApplyService
     /**
      * 訪客報到後資料寫入與回傳
      */
-    public function checkDone(int $id, int $slot, int $consent_form)
+    public function checkDone(int $id, int $slot, int $consentForm)
     {
-        $apply = GuestApply::query()->find($id);
-        if(!$apply) {
-            throw new RuntimeException(__('api.guest_apply.not_found'));
-        }
+        $apply = DB::connection('site_current')->transaction(function () use ($id, $slot, $consentForm) {
+            // 先鎖預約單，避免同一筆被同時報到兩次
+            $apply = GuestApply::query()->lockForUpdate()->find($id);
+            if (! $apply) {
+                throw new RuntimeException(__('api.guest_apply.not_found'), 404);
+            }
+            if ($apply->reservation_status !== GuestApply::STATUS_NOTIFIED) {
+                throw new RuntimeException(__('api.guest_apply.not_checkable'), 404);
+            }
 
-        $card_slot = GuestSlot::query()->find($slot);
-        if (! $slot) {
-            throw new RuntimeException(__('api.guest_slot.not_found'));
-        }
+            // 再鎖證件櫃，不存在與已占用分開處理
+            $cardSlot = GuestSlot::query()->lockForUpdate()->find($slot);
+            if (! $cardSlot) {
+                throw new RuntimeException(__('api.guest_slot.not_found'), 404);
+            }
+            if ((int) $cardSlot->status !== GuestSlot::STATUS_FREE) {
+                throw new RuntimeException(__('api.guest_slot.in_use'), 404);
+            }
 
-        // 更新證件櫃狀態與資訊
-        $card_slot->update([
-            'reservation_id' => $apply->reservation_id,
-            'status' => 1,
-        ]);
+            $cardSlot->update([
+                'reservation_id' => $apply->reservation_id,
+                'status' => GuestSlot::STATUS_USED,
+            ]);
 
-        // 更新預約單狀態與資訊
-        $apply->update([
-            'id_card_slot_no' => $card_slot->name,
-            'consent_form' => $consent_form,
-            'reservation_status' => GuestApply::STATUS_CHECKED_IN,
-            // 門禁卡號之後確認
-            'access_card_no' => '000000'
-        ]);
+            $apply->update([
+                'id_card_slot_no' => $cardSlot->name,
+                'consent_form' => $consentForm,
+                'reservation_status' => GuestApply::STATUS_CHECKED_IN,
+                'check_in_at' => now(),
+                // 門禁卡號之後確認：先不寫入，保持 null，避免假值混進查詢欄位
+            ]);
+
+            return $apply;
+        });
 
         return $apply;
     }
@@ -306,7 +317,6 @@ class GuestApplyService
         $prefix = 'GA'.now()->format('Ymd');
         $last = GuestApply::query()
             ->where('reservation_id', 'like', $prefix.'%')
-            ->lockForUpdate()
             ->orderByDesc('reservation_id')
             ->value('reservation_id');
 
