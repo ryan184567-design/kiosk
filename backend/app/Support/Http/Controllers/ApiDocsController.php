@@ -28,7 +28,7 @@ class ApiDocsController extends Controller
 
     public function partner()
     {
-        return view('docs.index', ['title' => 'WebBase API（廠商）', 'specUrl' => '/docs/openapi.partner.json']);
+        return view('docs.index', ['title' => 'WebBase API（廠商）', 'specUrl' => '/docs/openapi.partner.json', 'signTool' => true]);
     }
 
     public function hq()

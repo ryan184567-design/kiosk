@@ -1,0 +1,14 @@
+#factory-sign-tool { max-width: 1460px; margin: 16px auto 0; padding: 0 20px; font-family: sans-serif; }
+#factory-sign-tool .fs-box { border: 1px solid #49cc90; background: #f0fbf6; border-radius: 4px; }
+#factory-sign-tool .fs-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; font-weight: 600; }
+#factory-sign-tool .fs-body { padding: 0 14px 14px; }
+#factory-sign-tool .fs-hidden { display: none; }
+#factory-sign-tool .fs-note { font-size: 13px; color: #555; margin: 0 0 10px; line-height: 1.5; }
+#factory-sign-tool .fs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+#factory-sign-tool label { display: block; font-size: 12px; color: #333; margin-bottom: 3px; }
+#factory-sign-tool input, #factory-sign-tool textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid #bbb; border-radius: 3px; font-family: monospace; font-size: 13px; }
+#factory-sign-tool textarea { height: 130px; margin-top: 4px; }
+#factory-sign-tool .fs-actions { margin: 10px 0; display: flex; gap: 8px; }
+#factory-sign-tool button { padding: 6px 14px; border: 0; border-radius: 3px; background: #49cc90; color: #fff; cursor: pointer; font-size: 13px; }
+#factory-sign-tool button.fs-secondary { background: #6c7a89; }
+#factory-sign-tool .fs-error { color: #d33; font-size: 13px; min-height: 16px; }
