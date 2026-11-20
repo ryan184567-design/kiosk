@@ -328,11 +328,21 @@ class GuestApplyController extends BaseApiController
     }
 
     /**
-     * Remove the specified resource from storage.
+     * @api-method DELETE
+     * @api-path /api/guest/applies/{id}
+     * @api-tag GuestApply
+     * @api-summary 刪除訪客預約單
+     * @api-portal admin
+     * @api-description
+     * 刪除訪客預約單
+     * @api-no-request-body
+     * @api-response-empty
      */
-    public function destroy(string $id)
+    public function destroy(string $id, GuestApplyService $service)
     {
-        //
+        $service->delete($id);
+
+        return $this->success();
     }
 
     private function rules(): array

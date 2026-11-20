@@ -164,6 +164,16 @@ class GuestApplyService
         return $apply;
     }
 
+    public function delete(int $id): void
+    {
+        $apply = GuestApply::query()->find($id);
+        if (! $apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'));
+        }
+
+        $apply->delete();
+    }
+
     /**
      * 取消預約單：reservation_status 設為 60，並清除 QR code 與速通碼、門禁卡號讓它們立刻失效。
      * 資料保留不刪除（取消不是刪除）。
@@ -274,6 +284,40 @@ class GuestApplyService
                 'consent_form' => $consentForm,
                 'reservation_status' => GuestApply::STATUS_CHECKED_IN,
                 'check_in_at' => now(),
+                // 門禁卡號之後確認：先不寫入，保持 null，避免假值混進查詢欄位
+            ]);
+
+            return $apply;
+        });
+
+        return $apply;
+    }
+
+    public function leave(int $card_no){
+
+        $apply = DB::connection('site_current')->transaction(function () use ($card_no) {
+            $apply = GuestApply::query()->where('reservation_status', GuestApply::STATUS_CHECKED_IN)->where('access_card_no', $card_no)->first();
+
+            if (! $apply) {
+                throw new RuntimeException(__('api.guest_apply.not_found'), 404);
+            }
+
+            $cardSlot = GuestSlot::query()->where('name', $apply->id_card_slot_no)->first();
+
+            if (! $cardSlot) {
+                throw new RuntimeException(__('api.guest_slot.not_found'), 404);
+            }
+
+            $cardSlot->update([
+                'reservation_id' => null,
+                'status' => GuestSlot::STATUS_FREE,
+            ]);
+
+            $apply->update([
+                'id_card_slot_no' => null,
+                'fast_pass_code' => null,
+                'reservation_status' => GuestApply::STATUS_CHECKED_OUT,
+                'check_out_at' => now(),
                 // 門禁卡號之後確認：先不寫入，保持 null，避免假值混進查詢欄位
             ]);
 

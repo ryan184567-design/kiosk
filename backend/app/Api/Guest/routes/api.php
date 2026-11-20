@@ -15,6 +15,7 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.update')->put('/{id}', [GuestApplyController::class, 'update'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.cancel')->put('/{id}/cancel', [GuestApplyController::class, 'cancel'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.statusChange')->put('/{id}/status', [GuestApplyController::class, 'statusChange'])->whereNumber('id');
+        Route::middleware('permission.api:api.guest.destroy')->delete('/{id}', [GuestApplyController::class, 'destroy'])->whereNumber('id');
     });
 
     Route::prefix('slots')->group(function () {
@@ -33,4 +34,5 @@ Route::prefix('factory/guest')->middleware(['module:guest', 'factory.auth'])->gr
     Route::post('done', [FactoryGuestApplyController::class, 'done'])->middleware('factory.scope:guest.apply.done');
     Route::post('create', [FactoryGuestApplyController::class, 'create'])->middleware('factory.scope:guest.apply.create');
     Route::post('slot', [FactoryGuestApplyController::class, 'slot'])->middleware('factory.scope:guest.apply.slot');
+    Route::post('leave', [FactoryGuestApplyController::class, 'leave'])->middleware('factory.scope:guest.apply.leave');
 });

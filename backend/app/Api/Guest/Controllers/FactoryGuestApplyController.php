@@ -181,6 +181,36 @@ class FactoryGuestApplyController extends BaseApiController
     }
 
     /**
+     * @api-method POST
+     * @api-path /api/factory/guest/leave
+     * @api-tag Factory
+     * @api-summary 訪客機訪客離場
+     * @api-portal *
+     * @api-auth app
+     * @api-scope guest.apply.leave
+     * @api-description
+     * 訪客在訪客機辦離場，使用門禁卡號比對已到的預約單，並將門禁卡號、速通碼、證件櫃清除
+     * 查無資料（預約單查詢不到，證件櫃查詢不到）回 404。
+     * @api-request-field card_no int 門禁卡號
+     * @api-request-example {"card_no": 2548932547}
+     * @api-response-empty
+     */
+    public function leave(Request $request, GuestApplyService $service)
+    {
+        $data = $this->validateInput($request, [
+            'card_no' => 'required|int|max:20',
+        ]);
+
+        try {
+            $service->leave($data['card_no']);
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
+
+        return $this->success();
+    }
+
+    /**
      * @api-method GET
      * @api-path /api/factory/guest/slot
      * @api-tag Factory
