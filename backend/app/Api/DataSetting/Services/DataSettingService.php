@@ -16,6 +16,11 @@ class DataSettingService
         return Doorplate::query();
     }
 
+    public function doorplateApi()
+    {
+        return Doorplate::query()->get();
+    }
+
     public function building(): Builder
     {
         return Building::query();
@@ -37,7 +42,6 @@ class DataSettingService
                 ->where('buildings.status','=', 1)
                 ->get();
         }
-
 
         return ['floor' => $floor, 'building' => $building];
     }

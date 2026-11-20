@@ -23,6 +23,7 @@ class GuestSlotController extends BaseApiController
      * @api-portal *
      * @api-response-field data.items[].id int 證件櫃ID
      * @api-response-field data.items[].name string 證件櫃名稱
+     * @api-response-field data.items[].reservation_id string 預約單號
      * @api-response-field data.items[].remark string 備註
      * @api-response-field data.items[].status int 使用狀態
      * @api-response-field data.total int 總筆數
@@ -104,8 +105,9 @@ class GuestSlotController extends BaseApiController
      * @api-description
      * 修改證件櫃內容
      * @api-request-field name string 證件櫃名稱
-     * @api-request-field remark string 備註
+     * @api-request-field remark string 備註，選填
      * @api-request-field status int 使用狀態
+     * @api-request-field reservation_id string 預約單號，選填
      * @api-request-example
      * {"name": "E02","remark": "專放證件", "status": 1}
      * @api-response-empty
@@ -114,8 +116,9 @@ class GuestSlotController extends BaseApiController
     {
         $data = $this->validateInput($request, [
             'name' => 'required|string|max:50',
-            'remark' => 'required|string',
+            'remark' => 'nullable|string',
             'status' => 'required|int|max:1',
+            'reservation_id' => 'nullable|string|max:20',
         ]);
 
         $slot->update(
@@ -123,6 +126,7 @@ class GuestSlotController extends BaseApiController
             $data['name'],
             $data['remark'],
             $data['status'],
+            $data['reservation_id'],
         );
 
         return $this->success();
@@ -151,6 +155,7 @@ class GuestSlotController extends BaseApiController
         return [
             'id' => $guestSlot->id,
             'name' => $guestSlot->name,
+            'reservation_id' => $guestSlot->reservation_id,
             'remark' => $guestSlot->remark,
             'status' => $guestSlot->status,
         ];

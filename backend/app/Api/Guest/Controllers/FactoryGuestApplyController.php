@@ -11,7 +11,11 @@ namespace App\Api\Guest\Controllers;
 
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
+use App\Api\Guest\Models\GuestSlot;
+
 use App\Api\Guest\Services\GuestApplyService;
+use App\Api\Guest\Services\GuestSlotService;
+
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
@@ -176,6 +180,34 @@ class FactoryGuestApplyController extends BaseApiController
         return $this->success($this->presentDone($apply), 201);
     }
 
+    /**
+     * @api-method GET
+     * @api-path /api/factory/guest/slot
+     * @api-tag Factory
+     * @api-summary 查詢證件櫃
+     * @api-portal *
+     * @api-auth app
+     * @api-scope guest.apply.slot
+     * @api-description
+     * 取得全部證件櫃及其目前狀態，供現場訪客機顯示可選擇的證件櫃。
+     * 狀態以呼叫當下為準；實際報到時系統仍會再次檢查，已被占用的證件櫃會回傳 HTTP 404。
+     * @api-dict guest_slot_status 0=空閒,1=使用中
+     * @api-no-request-body
+     * @api-response-field data[].id int 證件櫃ID
+     * @api-response-field data[].name string 證件櫃名稱
+     * @api-response-field data[].status int dict:guest_slot_status 證件櫃狀態
+     */
+    public function slot(Request $request, GuestSlotService $slot)
+    {
+        $data = $slot->slotApi();
+
+        $data = collect($data)
+            ->map(fn (GuestSlot $guestSlot) => $this->presentSlot($guestSlot))
+            ->all();
+
+        return $this->success($data);
+    }
+
     private function present(GuestApply $apply): array
     {
         return [
@@ -201,6 +233,15 @@ class FactoryGuestApplyController extends BaseApiController
             'reservation_id' => $apply->reservation_id,
             'guest_count' => $apply->guest_count,
             'access_card_no' => $apply->access_card_no
+        ];
+    }
+
+    private function presentSlot(GuestSlot $guestSlot): array
+    {
+        return [
+            'id' => $guestSlot->id,
+            'name' => $guestSlot->name,
+            'status' => $guestSlot->status,
         ];
     }
 }

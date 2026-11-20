@@ -26,27 +26,18 @@ class FactoryDataSettingController extends BaseApiController
      * @api-description
      * 訪客機查詢目前樓層、門牌、公司名稱資訊
      * @api-no-request-body
-     * @api-response-field data.id int 門牌ID
-     * @api-response-field data.doorplate int 門牌
-     * @api-response-field data.floor int 樓層
-     * @api-response-field data.household int 室/戶/之
-     * @api-response-field data.company_name string 公司名稱
+     * @api-response-field data[].id int 門牌ID
+     * @api-response-field data[].doorplate int 門牌
+     * @api-response-field data[].floor int 樓層
+     * @api-response-field data[].household int 室/戶/之
+     * @api-response-field data[].company_name string 公司名稱
      */
     public function index(Request $request, DataSettingService $service)
     {
 
-        try {
-            $result = $this->paginateOrGet(
-                $service->doorplate(),
-                (int) $request->integer('per_page', -1),
-                (int) $request->integer('page', 1),
-            );
-        } catch (RuntimeException $e) {
-            return $this->failFromService($e);
-        }
-
-        $result['items'] = collect($result['items'])
-            ->map(fn ($doorplate) => $this->present($doorplate))
+        $data = $service->doorplateApi();
+        $result = collect($data)
+            ->map(fn (Doorplate $doorplate) => $this->present($doorplate))
             ->all();
 
         return $this->success($result);

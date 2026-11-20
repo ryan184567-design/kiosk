@@ -14,6 +14,11 @@ class GuestSlotService
         return GuestSlot::query();
     }
 
+    public function slotApi()
+    {
+        return GuestSlot::query()->get();
+    }
+
 
     public function create(string $name, string $remark): GuestSlot
     {
@@ -25,7 +30,7 @@ class GuestSlotService
         return $slot;
     }
 
-    public function update(int $id, string $name, string $remark, int $status): GuestSlot
+    public function update(int $id, string $name, ?string $remark = null, int $status, ?string $reservation_id = null): GuestSlot
     {
         $slot = GuestSlot::query()->find($id);
         if (! $slot) {
@@ -38,6 +43,7 @@ class GuestSlotService
 
         $slot->update([
             'name' => $name,
+            'reservation_id' => $reservation_id,
             'remark' => $remark,
             'status' => $status,
         ]);

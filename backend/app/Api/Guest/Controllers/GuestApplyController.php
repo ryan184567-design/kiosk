@@ -287,7 +287,7 @@ class GuestApplyController extends BaseApiController
     /**
      * @api-method PUT
      * @api-path /api/guest/applies/{id}/cancel
-     * @api-tag 訪客預約
+     * @api-tag GuestApply
      * @api-summary 取消訪客預約
      * @api-portal admin
      * @api-description
