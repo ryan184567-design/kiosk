@@ -194,7 +194,7 @@ class DataSettingController extends BaseApiController
             'bid' => 'nullable|int|max:2',
         ]);
 
-        $result = $dataSetting->floor($data['bid']);
+        $result = $dataSetting->floor($data['bid'] ?? null);
 
         $data = [
             'floor'=>$result['floor'],

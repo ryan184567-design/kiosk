@@ -69,12 +69,12 @@ class GuestSlotController extends BaseApiController
     {
         $data = $this->validateInput($request, [
             'name' => 'required|string|max:50',
-            'remark' => 'required|string',
+            'remark' => 'nullable|string',
         ]);
 
         $slot->create(
             $data['name'],
-            $data['remark'],
+            $data['remark'] ?? null,
         );
 
         return $this->success();
@@ -124,9 +124,9 @@ class GuestSlotController extends BaseApiController
         $slot->update(
             $id,
             $data['name'],
-            $data['remark'],
+            $data['remark'] ?? null,
             $data['status'],
-            $data['reservation_id'],
+            $data['reservation_id'] ?? null,
         );
 
         return $this->success();

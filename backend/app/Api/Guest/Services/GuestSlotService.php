@@ -20,7 +20,7 @@ class GuestSlotService
     }
 
 
-    public function create(string $name, string $remark): GuestSlot
+    public function create(string $name, ?string $remark = null): GuestSlot
     {
         $slot = GuestSlot::query()->create([
             'name' => $name,
