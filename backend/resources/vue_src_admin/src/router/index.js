@@ -34,6 +34,9 @@ const routes = [
       // 訪客管理模塊：路徑對應後端 app/Api/Guest/module.json 的選單 path。
       { path: 'guest/registration', name: 'guest-registration', meta: { title: '訪客登記' }, component: () => import('../pages/guest/VisitorRegistration.vue') },
       { path: 'guest/applies', name: 'guest-applies', meta: { title: '預約管理' }, component: () => import('../pages/guest/ReservationList.vue') },
+      // 廠商模式（App Token）的 App 管理：全局共用，路徑對應後端 app/Api/Factory/module.json 的選單 path。
+      { path: 'factory-apps', name: 'factory-apps', meta: { title: '廠商 App 管理' }, component: () => import('../pages/factory/FactoryAppList.vue') },
+      { path: 'factory-logs', name: 'factory-logs', meta: { title: '廠商 App 記錄' }, component: () => import('../pages/factory/FactoryLogList.vue') },
       // 404 放最後，見 resources/vue_src/src/router/index.js 同一段說明：
       // 找不到頁面要顯示明確的 404，不能讓 <router-view> 悄悄渲染空白。
       { path: ':pathMatch(.*)*', name: 'admin-not-found', meta: { title: '找不到頁面' }, component: () => import('../pages/NotFound.vue') },

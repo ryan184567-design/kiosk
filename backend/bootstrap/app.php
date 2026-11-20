@@ -2,6 +2,8 @@
 
 use App\Support\Api\ApiResponder;
 use App\Support\Api\ErrorCode;
+use App\Support\Http\Middleware\EnsureFactoryAuthenticated;
+use App\Support\Http\Middleware\EnsureFactoryScope;
 use App\Support\Http\Middleware\EnsureHqJwtAuthenticated;
 use App\Support\Http\Middleware\EnsureHqSuperAdmin;
 use App\Support\Http\Middleware\EnsureJwtAuthenticated;
@@ -67,6 +69,11 @@ return Application::configure(basePath: dirname(__DIR__))
             // 另外寫一份。
             'permission.api' => EnsurePermission::class,
             'permission.web' => EnsurePermission::class,
+
+            // 訪客機等「機器」呼叫方：App 認證與 scope 授權，見 DEVELOP.MD 12.9、docs/APP_DEVELOP.MD。
+            // 與用戶 jwt.auth／permission.api 並存，互不影響。
+            'factory.auth' => EnsureFactoryAuthenticated::class,
+            'factory.scope' => EnsureFactoryScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

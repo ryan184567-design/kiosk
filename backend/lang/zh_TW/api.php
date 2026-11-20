@@ -19,6 +19,7 @@ return [
         'token_replaced_by_new_login' => '此帳號已於其他裝置登入',
         'module_not_enabled' => '模塊未開通',
         'portal_admin_only' => '此端口僅開放端口管理員登入',
+        'resource_not_found' => '找不到資源',
         'system_error' => '系統異常',
         'unknown_error' => '未知錯誤',
     ],
@@ -136,6 +137,13 @@ return [
         'visitor_count_mismatch' => '來訪者名單共 :count 位，超過來訪人數 :max 人。',
         'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
         'invalid_check_type' => '請選擇使用qrcode或電話查詢'
+    ],
+
+    'factory' => [
+        'auth_failed' => '認證失敗',
+        'app_not_found' => '找不到此 App。',
+        'log_not_found' => '找不到此記錄。',
+        'scope_invalid' => 'scope 格式不正確：:scope',
     ],
 
     'guest_slot' => [

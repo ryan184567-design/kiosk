@@ -67,7 +67,7 @@ php artisan serve --host=127.0.0.1 --port=8000      # 或 composer run dev（ser
 app/Api/{Module}/         子站共用 API：Controllers／Models／Services／routes／module.json
 app/Hq/{Module}/          主站專屬（站點管理），與子站完全獨立
 app/Web/{Portal}/{Mod}/   各端口 Blade 頁骨架與路由（業務邏輯仍在 Api）
-app/Support/{Concept}/    共用層（Auth、Site、Api、Audit、Plugin、Sso…）；共用層不得依賴 app/Hq
+app/Support/{Concept}/    共用層（Auth、Site、Api、Audit、Plugin、Sso、Factory…）；共用層不得依賴 app/Hq
 app/Sites/{SiteCode}/     子站客製化：覆寫 Service，或公版沒有的全新 API
 app/Plugins/{Func}/{Brand}/{Ver}/   案場對接插件（AD／SSO／設備）
 resources/vue_src*        前台／子站後台（_admin）／主站後台（_hq）三套 SPA 原始碼
@@ -85,7 +85,7 @@ Model 放「擁有它的模塊」的 `Models/`（模塊要能整包移除）；�
 2. API 放 `app/Api/{module}`（Model-Service-Controller）；Controller 只驗證與轉發，邏輯在 Service。
 3. 輸入只經 `$this->validateInput()`；禁用 `$_GET`／`$_POST`／`$_REQUEST`；一律走 ORM／參數綁定。
 4. 可能被子站覆寫的 Service，在 Controller 用**方法參數注入**，不要建構子注入，也不要 `new XxxService()`。
-5. 新模塊動工前確認：登記進 `modules`（`module.json`）、給哪些端口、路由掛 `module:{code}`、是否開放 App Token。
+5. 新模塊動工前確認：登記進 `modules`（`module.json`）、給哪些端口、路由掛 `module:{code}`、是否開放 App Token（廠商模式，見 5.8）。
 6. 文案一律走語言包：`lang/zh_TW/api.php`（`app/Api`、`app/Support`）、`lang/zh_TW/hq.php`（`app/Hq`）。
 7. Swagger 標註要自成一體（入參、回傳欄位、字典選項都寫清楚），不可寫「見 README」。
 8. 分頁用 `PaginationHelper`，註明 `per_page=-1` 不分頁；刪除一律軟刪除。
@@ -168,6 +168,7 @@ composer audit; npm audit                                        # 依賴漏洞�
 | --- | --- |
 | 新增模塊／改 `module.json` | `module:sync` |
 | 新增／改名 API、`@api-*` 註解 | `permission:sync-api --site=1 --assign-admin=admin` → `swagger:generate --pretty` |
+| 新增／改名機器接口（`factory.scope`，5.8） | `factory:sync-scopes --site=1` → 後台授權 → `swagger:generate --pretty` |
 | 新增 Web 頁路由（`permission.web`） | `permission:sync-web --site=1 --assign-admin=admin` |
 | 公版 migration | `site:migrate --all` |
 | `SiteBaselineSeeder`（端口、選單分組、設定項、字典） | `site:migrate --all --seed=Database\Seeders\SiteBaselineSeeder` |
@@ -261,6 +262,46 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 
 ---
 
+### 5.8 開放廠商模式（App Token）給機器／第三方呼叫
+
+機器（訪客機等）沒有用戶賬號，用 **App 身份** 呼叫 `/api/factory/*`（與用戶登入並存、互不影響）。完整指南見 `docs/APP_DEVELOP.MD`，設計摘要見 DEVELOP.MD 12.9。
+
+**分工：**
+
+| 層 | 放什麼 | 位置 |
+| --- | --- | --- |
+| 框架核心 | 簽名驗證、JWT、scope 比對、`factory.auth`／`factory.scope` middleware、`config/factory.php` | `app/Support/Factory/` |
+| 核心模塊 `factory` | **只放管理功能**：換 token（`POST /api/factory/token`）、App／授權／記錄的後台管理（`/api/system/factory/*`）。核心模塊恆為開通 | `app/Api/Factory/` |
+| **各業務模塊** | **自己**的機器接口（具體業務操作） | `app/Api/{Module}/Controllers/Factory{Xxx}Controller.php` |
+
+> ⚠ **不要把任何業務模塊的接口放進 `app/Api/Factory`**。業務接口屬於擁有該業務的模塊（整包可移除、模塊沒開通即被擋）；`Factory` 模塊只管「誰（`app_id`）能不能呼叫」。
+
+**必守規則（已有測試把關：`tests/Feature/Factory/FactoryAuthTest.php`）：**
+
+| 項目 | 規則 |
+| --- | --- |
+| 位置 | `app/Api/{模塊}/Controllers/` **根層**，不可放子資料夾（`permission:sync-api`、`swagger:generate` 只掃根層，放子資料夾會被漏掉） |
+| 類名／檔名 | **`Factory{Xxx}Controller`**（`Xxx` 大駝峰，描述業務，如 `FactoryGuestApplyController`） |
+| `Factory` 前綴保留 | 只能用在路徑為 `/api/factory/*` 的 Controller，且該 Controller 只放 `/api/factory/*` 的接口；後台管理（`/api/system/factory/*`）與一般接口**不可**用此前綴；端口（portal）也不要取名 `factory`（會與 DEVELOP.MD 9.1.1 的 `{PortalKey}{Feature}Controller` 混淆） |
+| 路徑 | `/api/factory/{模塊代碼}/...`（`Route::prefix('factory/{模塊}')`） |
+| 路由 middleware | `['module:{code}', 'factory.auth']`，單支再掛 `factory.scope:{模塊}.{資源}.{動作}`；**不可**掛 `jwt.auth`／`permission.api` |
+| 註解 | `@api-portal *`、`@api-auth app`、`@api-scope {scope}`（須與路由 `factory.scope:` 完全一致）；不需認證的（換 token）標 `@api-auth public` |
+| 權限 | scope **不進** `permissions` 表（`permission:sync-api` 會略過標了 `@api-auth` 的接口）；改跑 `factory:sync-scopes` 登記，再到後台「廠商 App 管理 → 授權」勾選 |
+| Swagger | `/api/factory/*` 進第三方文件 `/docs/partner`，不在內部文件 `/docs`（DEVELOP.MD 12.8） |
+| 一般接口誤用 | App Token 拿去呼叫 `/api/factory/*` 以外的接口一律 403 |
+
+> 機器接口**不限於查詢**：報到、離場、存放證件位置等寫入類操作同樣支援，沒有「只讀」限制；風險靠逐一授權 scope（最小授權）與 Service 層的業務檢查控制，指引見 `docs/APP_DEVELOP.MD` 5 節「寫入類接口」。
+
+> 排查機器問題：後台「廠商 App 管理」每個 App 有「**除錯模式**」開關。關閉時只記錄非 2xx 的呼叫；開啟時成功失敗都記錄（含完整請求與回應，敏感值遮罩）。到「廠商 App 記錄」可依 **App ID、業務模塊、具體方法、結果、時間** 搜尋，詳情含 IP、時間、接口、所有 header、GET／POST／JSON 參數、狀態碼與完整回應。**記錄保留 30 天，超過由每日排程 `factory:logs-prune` 自動移除（需 cron 每分鐘跑 `schedule:run`）**。新增機器接口不需額外處理；除錯資料量大，查完請關閉。詳見 `docs/APP_DEVELOP.MD` 7.5。
+
+**新增一支機器接口：**
+1. 在**自己的模塊**寫 `Factory{Xxx}Controller`（業務邏輯沿用既有 Service，不要複製），只回傳機器需要的欄位。
+2. 路由放自己的 `routes/api.php`，照上表掛 middleware；每個方法寫 `@api-*` 註解。
+3. `factory:sync-scopes --site=1` → 後台授權 → `swagger:generate --pretty`。
+4. 補測試（照 `FactoryAuthTest`：缺 token＝401、缺 scope＝403、查無資料＝404）。
+
+範例：`app/Api/Guest/Controllers/FactoryGuestApplyController.php` 與 `app/Api/Guest/routes/api.php` 最下方的 `factory/guest` 群組。
+
 ## 6. 前端（Vue3）：共用、客製化與部署
 
 ### 6.1 四套前端，各自獨立建置
@@ -346,17 +387,19 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Auth
 | --- | --- |
 | 指令失敗 | 確認 `php -v` 為 8.2.29、`.env` 的 `DB_*` 正確、MySQL 已啟動 |
 | `/hq`、`/admin` 404 | SPA 沒建置：`npm run hq:build`／`npm run admin:build` |
-| 登入後每支 API 都失敗、`Key material must not be empty` | `JWT_SITE_SECRET`／`JWT_HQ_SECRET` 沒設：`php artisan jwt:secret`（log：`storage/logs/laravel.log`） |
+| 登入後每支 API 都失敗、`Key material must not be empty` | `JWT_SITE_SECRET`／`JWT_HQ_SECRET` 沒設（機器接口另需 `FACTORY_JWT_SECRET`）：`php artisan jwt:secret`（log：`storage/logs/laravel.log`） |
 | 首頁正常、登入就 500 | 多半是 `site_current` 連線或誤用 `env()`（DEVELOP.MD 6.4） |
 | 畫面空白、console 有 CSP violation | 嚴格 CSP 的預期行為；`:style` 動態綁定是常見原因（DEVELOP.MD 4.2.1） |
 | 改設定沒生效 | `php artisan optimize:clear` |
 | API 一律 403 | 權限碼與方法名不一致、沒 `permission:sync-api`、角色沒勾選，或模塊未開通（5.5） |
 | 選單沒出現 | 見 5.3「沒出現時檢查」 |
+| 機器接口換 token 一直 401／500 | 後台「廠商 App 記錄」看失敗原因；500 多半是 `.env` 沒設 `FACTORY_JWT_SECRET`（至少 32 字元）：見 `docs/APP_DEVELOP.MD` 7.4 |
+| 機器接口回 403 | 該 `app_id` 沒被授權對應 scope（後台授權）；或拿 App Token 去呼叫 `/api/factory/*` 以外的接口 |
 
 **文件與程式的已知落差**（照 DEVELOP.MD 做卻失敗時先看；完整表見 DEVELOP.MD 22.1）
 
 - `composer run swagger:generate` 不存在 → 用 `php artisan swagger:generate --pretty`。
 - 建站 API 實際是 `POST /api/hq/sites`；`site:create` 沒有 `--clone-from`（只有 `--type`）。
-- 廠商模式 `/api/factory/*` 尚未實作；初始帳號以第 7 節為準。
+- 廠商模式（App Token）已實作「換 token ＋ scope 授權」；**尚未實作**「app token 換 user token」（`/api/factory/auth/login`，DEVELOP.MD 18.3 第 2 步）；初始帳號以第 7 節為準。
 
 其餘：目前狀態與未完成項目（前台是骨架頁、檔案管理暫緩、只有 `admin` 端口有跳轉登入落地頁）見 DEVELOP.MD 22.1。

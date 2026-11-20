@@ -1,0 +1,32 @@
+{
+    "code": "factory",
+    "name": "廠商模式（App Token）",
+    "description": "廠商／機器以 App 身份（app_id + 簽名換 app token）呼叫 /api/factory/*；含 App、scope 授權與記錄的後台管理",
+    "is_core": true,
+    "sort": 3,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "factory-apps",
+            "title": "廠商 App 管理",
+            "subtitle": "管理廠商／機器的 app_id 與可操作的接口權限",
+            "icon": "Menu",
+            "path": "/factory-apps",
+            "permission_code": "api.factory.appIndex",
+            "group": "group-system",
+            "sort": 20
+        },
+        {
+            "portal": "admin",
+            "key": "factory-logs",
+            "title": "廠商 App 記錄",
+            "subtitle": "查看 token 簽發與權限被拒記錄",
+            "icon": "Menu",
+            "path": "/factory-logs",
+            "permission_code": "api.factory.logIndex",
+            "group": "group-system",
+            "sort": 21
+        }
+    ]
+}

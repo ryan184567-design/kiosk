@@ -211,6 +211,16 @@ class SwaggerGenerateCommand extends Command
             $operation['x-portals'] = $portals;
         }
 
+        // 機器（訪客機）呼叫的接口：標 @api-auth app／public，見 DEVELOP.MD 12.9。
+        // app 代表需 Bearer access token（factory.auth）加 @api-scope（factory.scope）。
+        if (($parsed['auth'] ?? null) === 'app') {
+            $operation['security'] = [['appBearerAuth' => []]];
+            $operation['x-scope'] = $parsed['scope'];
+            $operation['description'] = trim("**App 認證**（訪客機）：需帶 `Authorization: Bearer <access_token>`，且 App 已被授權 scope `{$parsed['scope']}`。
+
+".($operation['description'] ?? ''));
+        }
+
         $dicts = $this->indexDicts($parser->dicts($parsed));
         $requestFields = $parser->requestFields($parsed);
 
@@ -355,6 +365,8 @@ class SwaggerGenerateCommand extends Command
             'openapi' => '3.0.3',
             'info' => ['title' => config('app.name'), 'version' => '1.0.0'],
             'paths' => $paths,
+            // App（機器）認證（factory.auth）用的 Bearer token，取得方式見 POST /api/factory/token
+            'components' => ['securitySchemes' => ['appBearerAuth' => ['type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT']]],
         ];
 
         $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | ($this->option('pretty') ? JSON_PRETTY_PRINT : 0);

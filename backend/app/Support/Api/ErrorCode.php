@@ -24,6 +24,9 @@ class ErrorCode
     public const MODULE_NOT_ENABLED = 20016;
     public const PORTAL_ADMIN_ONLY = 20017;
 
+    // 4xxxx 資源
+    public const RESOURCE_NOT_FOUND = 40004;
+
     // 5xxxx 系統異常
     public const SYSTEM_ERROR = 50000;
 }

@@ -14,6 +14,7 @@ use App\Api\Auth\Models\UserJwtSession;
 use App\Support\Api\ApiResponder;
 use App\Support\Api\ErrorCode;
 use App\Support\Auth\JwtService;
+use App\Support\Factory\FactoryJwtService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,6 +39,12 @@ class EnsureJwtAuthenticated
         $claims = $this->jwt->decode($token, (string) config('jwt.site_secret'));
 
         if (! $claims) {
+            // 見 DEVELOP.MD 12.8：App Token（廠商模式）只允許訪問 /api/factory/*，
+            // 拿它來呼叫一般（用戶）接口要回 403，而不是當成「token 無效」的 401。
+            if (app(FactoryJwtService::class)->verify($token) !== null) {
+                return ApiResponder::fail(ErrorCode::PERMISSION_DENIED);
+            }
+
             return ApiResponder::fail(ErrorCode::CREDENTIALS_MISSING, __('api.auth.token_invalid'));
         }
 

@@ -73,6 +73,12 @@ class PermissionSyncApiCommand extends Command
 
                 try {
                     $validator->validate($parsed, $parsed['method'], "{$class}::{$method->getName()}");
+
+                    // 機器（訪客機）接口用 factory.auth／factory.scope，不屬於後台用戶權限，不登記，見 DEVELOP.MD 12.9。
+                    if (in_array($parsed['auth'] ?? null, ['app', 'public'], true)) {
+                        continue;
+                    }
+
                     $code = $this->syncOne($parser, $parsed, $moduleCode, $method->getName());
                     $synced[] = $code;
                     $this->line("同步：{$code}");

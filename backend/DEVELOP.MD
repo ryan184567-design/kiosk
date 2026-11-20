@@ -645,7 +645,7 @@ app/
     Front/{module}/        # 對外一般前台（如有），結構同 Admin
     Sso/Callback/          # 不綁端口的登入類落地頁（見 8.6），結構同 Admin
     Impersonation/Callback/ # 主站跳轉登入的落地頁（見 6.11），結構同 Admin
-  Support/                  # 共用工具層：Auth、Site、File、Cache…（沿用 nckuh_ems 慣例）
+  Support/                  # 共用工具層：Auth、Site、File、Cache、Factory（廠商模式 App Token 核心，見 12.9）…（沿用 nckuh_ems 慣例）
     Impersonation/          # 子站端兌換主站跳轉交換碼（JSON API 與 Blade 落地頁共用，見 6.11）
     {Concept}/Models/        # 框架核心、跨模塊共用、不屬於任何單一可購買模塊的 Model
                               # （AuditLog、Portal、Permission、IdentityType、SitePluginConfig），
@@ -912,6 +912,57 @@ public/
 - App 模式 token 僅允許訪問 `/api/factory/*`，訪問一般路徑會回傳 403。
 
 ---
+
+### 12.9 廠商模式（App Token）：機器認證 + scope 授權
+5. **`Factory` 前綴保留給廠商模式（App Token）**：`Factory{Xxx}Controller` 專指路徑為 `/api/factory/*` 的機器接口（README 5.8、本文件 12.9），不是 portal 前綴；因此**不可建立 `portal_key = factory` 的端口**，後台管理類 Controller（`/api/system/factory/*`）也不可用 `Factory` 開頭。測試 `test_factory_controller_naming_convention` 會把關。
+
+訪客機等「機器」沒有用戶賬號，用「App 身份」呼叫 `/api/factory/*`（即 12.8 的廠商模式）。它與用戶登入（`jwt.auth`）**並存、互不影響**。完整開發指南見 `docs/APP_DEVELOP.MD`。
+
+**分工（重要，照這個放，不要把業務接口塞進 `Factory` 模塊）**
+| 層 | 放什麼 | 位置 |
+| --- | --- | --- |
+| 框架核心 | 簽名驗證、JWT、scope 比對、`factory.auth`／`factory.scope` middleware、`config/factory.php` | `app/Support/Factory/`、`app/Support/Http/Middleware/` |
+| 核心模塊 `factory` | **只放管理功能**：換 token（`POST /api/factory/token`）、App／授權／記錄的後台管理（`/api/system/factory/*`）；選單在「系統設定」底下 | `app/Api/Factory/` |
+| **各業務模塊** | **自己**的機器接口（具體業務操作），模塊沒開通即被擋 | `app/Api/{Module}/Controllers/Factory{Xxx}Controller.php`，範例：`app/Api/Guest` 的速通碼查詢 |
+
+核心模塊 `factory` 恆為開通，所以沒有「模塊開關」問題；機器接口是否可用仍取決於**業務模塊有沒有開通、有沒有提供該業務接口**（路由掛 `module:{code}`），再由後台逐一授權哪個 `app_id` 能呼叫哪支接口。
+
+**兩套認證對照**
+| | 後台用戶接口 | 廠商模式（App Token）接口 |
+| --- | --- | --- |
+| 身份 | 用戶＋端口＋角色 | App（`app_id`） |
+| 認證 middleware | `jwt.auth` | `factory.auth` |
+| 權限 middleware | `permission.api:api.模塊.方法名` | `factory.scope:模塊.資源.動作` |
+| 權限來源 | 角色的 `permission_codes` | 每個 App 各自的授權（`factory_app_scopes`），支援單項、`模塊.*`、`*` |
+| 路徑 | `/api/{模塊}/...` | `/api/factory/{模塊}/...`；後台管理在 `/api/system/factory/*` |
+| 權限登記指令 | `permission:sync-api` | `factory:sync-scopes` |
+| Swagger | 內部文件 `/docs` | 機器接口進 `/docs/partner`（12.8）；標 `@api-auth app`＋`@api-scope` |
+
+**認證流程**：`POST /api/factory/token`，body `app_id, timestamp, nonce, sign`；`sign = HMAC-SHA256(app_secret, "app_id|timestamp|nonce")` 小寫 hex。伺服器依序檢查 App 狀態／有效期／IP 白名單／時間窗（±300 秒）／HMAC／nonce 是否重複，**任何失敗一律回同一個 401**（原因只寫入 `factory_logs`），僅時間窗失敗額外回 `server_time`。成功回 HS256 JWT（預設 3600 秒），之後每次請求帶 `Authorization: Bearer`。**App Token 只能訪問 `/api/factory/*`，拿去呼叫一般接口回 403**（`EnsureJwtAuthenticated`）。
+
+**關鍵設計（review 時請確認沒有被破壞）**
+- `app_secret` **加密存放**（`encrypted` cast，需可還原才能重算 HMAC）、只在建立／重置時顯示一次、任何查詢接口都不回傳。
+- JWT 密鑰 `FACTORY_JWT_SECRET` 獨立於 `APP_KEY`、`JWT_SITE_SECRET`、`JWT_HQ_SECRET`；驗證固定只接受 HS256，並驗 `iss`。
+- token 內**不寫權限**：每次請求依 `sub` 查 App 狀態，scope 清單短暫快取（`FACTORY_SCOPE_CACHE_TTL`，預設 60 秒）。
+- 換 token 限流：每 IP、每 `app_id` 各自限制（`factory-token`，見 `AppServiceProvider`）。
+- 回應只回傳機器需要的欄位，不直接回傳 Model。
+- **除錯模式與呼叫記錄**：每個 App 有 `is_debug` 開關（後台可設）。關閉時只記錄回應非 2xx 的呼叫，開啟時成功失敗都記錄。記錄盡可能完整：來源 IP（含 IP 鏈）、起始時間與耗時、模塊、具體方法（`Controller@method`）、路由樣式、所需 scope、完整 URL、所有 request／response header、GET／POST 表單／JSON／原始 body、路由參數、上傳檔案資訊、狀態碼、完整回應內容；敏感值（password、secret、token、authorization、cookie…）遮罩，每個區塊超過 `FACTORY_LOG_MAX_BYTES` 截斷。後台可依 App ID、業務模塊、具體方法、結果、時間搜尋。**記錄保留 `FACTORY_LOG_RETENTION_DAYS`（預設 30）天，超過由每日排程 `factory:logs-prune` 自動移除**（全部記錄類型、遍歷所有子站，需 cron 每分鐘跑 `schedule:run`，見 18.4）。實作在 `App\Support\Factory\FactoryCallLogger`（`factory.auth` 的 `terminate()` 呼叫，連 500 也能記到）與 `FactoryLogPruner`，見 `docs/APP_DEVELOP.MD` 7.5。
+
+**命名規則（定死，測試把關）**：路徑在 `/api/factory/*` 的 Controller 一律命名 `Factory{Xxx}Controller`、放 `app/Api/{模塊}/Controllers/` 根層（`permission:sync-api`／`swagger:generate` 只掃這一層，放子資料夾會被漏掉）；`Factory` 前綴只能用在 `/api/factory/*`，後台管理與一般接口不可用（`factory` 模塊的後台管理 Controller 因此叫 `AppController`、`AppLogController`）。`tests/Feature/Factory/FactoryAuthTest.php` 會掃描**所有模塊**的 Controller，違反命名、漏標 `@api-auth`、或 `@api-scope` 與路由不一致都會讓測試失敗。
+
+**在業務模塊新增一支機器接口**
+1. 在**自己的模塊**寫 `Factory{Xxx}Controller`（`Controllers/` 根層），業務邏輯沿用既有 Service。
+2. 路由放自己的 `routes/api.php`：`Route::prefix('factory/{模塊}')->middleware(['module:{code}', 'factory.auth'])`，單支再掛 `factory.scope:{scope}`。
+3. docblock 加 `@api-auth app`、`@api-scope {scope}`（須與路由一致，測試會檢查）、`@api-portal *`；其餘標註同 12.1。標了 `@api-auth` 的接口 `permission:sync-api` 會略過。
+4. `php artisan factory:sync-scopes [--site=]` 登記 scope，再到後台「廠商 App 管理 → 授權」勾選；`php artisan swagger:generate --pretty` 更新文件；補測試（照 `tests/Feature/Factory/FactoryAuthTest.php`）。
+
+**機器接口不限於查詢**：報到、離場、存放證件位置等寫入類操作同樣支援（框架沒有「只讀」限制，`factory.scope` 只比對 scope、不看 HTTP 方法）；寫入類接口一個動作一個 scope、最小授權、業務規則在 Service、要能安全重複送出，詳見 `docs/APP_DEVELOP.MD` 5 節「寫入類接口」。
+
+**不要踩的坑**
+- Service 拋的業務 `RuntimeException` 用 `MapsServiceExceptions::failFromService()` 轉換，**不要直接 `catch (RuntimeException)`**：`QueryException` 是它的子類，會把資料庫錯誤誤報成 404／422。
+- 機器接口不要掛 `permission.api`，也不要漏掉 `@api-auth`，否則會被登記成後台用戶權限。
+- `APP_KEY` 變更會導致已存的 `app_secret` 無法解密，需對所有 App 重置 secret。
+- 尚未實作：app token 換 user token（`/api/factory/auth/login`，18.3 第 2 步）。
 
 ## 13. 資料庫與遷移規範
 1. Schema 變更必須透過 migration，禁止手改線上結構。
@@ -1303,20 +1354,22 @@ $token = "請填入登入返回的 access_token"
 Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Authorization = "Bearer $token" }
 ```
 
-廠商模式（App Token）測試流程：
+廠商模式（App Token）測試流程（已實作第 1、3 步；第 2 步 app token 換 user token 尚未實作）：
 ```powershell
-# 1. 申請 app token（APPID + APPSECRET）
-$appBody = @{ app_id = '請填入APPID'; app_secret = '請填入APPSECRET' } | ConvertTo-Json
-$appTokenResp = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/factory/token" -Method Post -ContentType "application/json" -Body $appBody
-$appToken = $appTokenResp.data.access_token
+# 0. 先在後台「系統設定 → 廠商 App 管理」建立 App（app_secret 只顯示一次），或用指令：
+#    php artisan factory:app-create "測試機" --scope=guest.apply.read --site=1
+# 1. 用 HMAC 簽名換取 app token（app_secret 不經網路傳送，只傳簽名）
+$appId = '請填入 app_id'; $secret = '請填入 app_secret'
+$ts = [int][double]::Parse((Get-Date -UFormat %s)); $nonce = [guid]::NewGuid().ToString('N')
+$hmac = New-Object System.Security.Cryptography.HMACSHA256 -ArgumentList (,[Text.Encoding]::UTF8.GetBytes($secret))
+$sign = ($hmac.ComputeHash([Text.Encoding]::UTF8.GetBytes("$appId|$ts|$nonce")) | ForEach-Object { $_.ToString('x2') }) -join ''
+$body = @{ app_id = $appId; timestamp = $ts; nonce = $nonce; sign = $sign } | ConvertTo-Json
+$appToken = (Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/factory/token" -Method Post -ContentType "application/json" -Body $body).data.access_token
 
-# 2. app token 換 user token（廠商模式登入）
-$loginBody = @{ username = 'admin'; password = '請填入 SITE_DELEGATION_ROOT_PASSWORD'; portal_key = 'vendor' } | ConvertTo-Json
-$userTokenResp = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/factory/auth/login" -Method Post -ContentType "application/json" -Headers @{ Authorization = "Bearer $appToken" } -Body $loginBody
-$userToken = $userTokenResp.data.access_token
+# 2. （尚未實作）app token 換 user token：POST /api/factory/auth/login
 
-# 3. 使用 user token 呼叫廠商模式 profile
-Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/factory/user/profile" -Headers @{ Authorization = "Bearer $userToken" }
+# 3. 用 app token 呼叫廠商模式接口（範例：以速通碼查詢預約單）
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/factory/guest/applies?fast_pass_code=12345678" -Headers @{ Authorization = "Bearer $appToken" }
 ```
 
 ### 18.4 Laravel Scheduler 部署（生產環境）
@@ -1387,7 +1440,7 @@ php artisan jwt:sessions:prune --dry-run
 11. API代碼中不允許直接使用文字，需要使用語言包。實際採用 Laravel 標準的 `lang/{locale}/{file}.php`（`base_path('lang')`，不是 `app/lang`，這樣不需要額外呼叫 `useLangPath()` 覆寫框架預設路徑）：`app/Api`、`app/Support`（含 `ErrorCatalog`、`PluginManager`、`SsoManager` 等會被 API 請求路徑呼叫到的共用工具）、`app/Web/Sso`（SSO 落地頁，見 8.6）、`app/Web/Impersonation`（跳轉登入落地頁，見 6.11）統一用 `lang/zh_TW/api.php`；`app/Hq` 因程式碼與資料庫完全獨立（見 6.5），文字另外放 `lang/zh_TW/hq.php`，不與 api.php 混用。`.env` 的 `APP_LOCALE`/`APP_FALLBACK_LOCALE` 已設為 `zh_TW`。此規則不含 CLI 指令（`app/Console/Commands`）的終端機輸出訊息與 `permission:sync-api`／`swagger:generate` 的標註驗證錯誤（`ApiAnnotationValidator`）——這些是開發期間才看得到的建置期診斷文字，不是執行期回應真實使用者的 API 內容，比照專案裡 migration/seeder 的 `$this->command?->info()` 輸出，不受此規則限制。
 12. 請以專業的角度，在有疑問或是方案不夠明確的時候，請一定要提出疑問，而不是隨意自己決策，導致完成的代碼與我的設計有偏差
 13. 如果需要了解資料庫結構或是數據情況，可以使用 dbcode MCP 查詢；後端 API 資料庫、APP 端 sqlite 資料庫各自的連線名稱請依實際建置環境設定為準。
-14. 新模塊開發前，需先確認：(1) 是否已在 `modules` 主表登記（見 6.9），未登記 `permission:sync-api` 會報錯中斷；(2) 這個模塊要提供給哪些端口（`portal_key`），若跨多端口，Controller 需依 9.1.1 的命名規則加上 portal 前綴，Model／Service 維持共用不拆分；(3) 模塊路由需掛載 `module:{code}` middleware（6.9），確保未開通該模塊的子站會被擋下；(4) 若模塊需開放給廠商 App Token（`/api/factory/*`）呼叫，需確認路由掛載在 `factory` 命名空間下並比照 12.8 的受眾隔離規則，避免一般路徑被 App Token 誤訪問。
+14. 新模塊開發前，需先確認：(1) 是否已在 `modules` 主表登記（見 6.9），未登記 `permission:sync-api` 會報錯中斷；(2) 這個模塊要提供給哪些端口（`portal_key`），若跨多端口，Controller 需依 9.1.1 的命名規則加上 portal 前綴，Model／Service 維持共用不拆分；(3) 模塊路由需掛載 `module:{code}` middleware（6.9），確保未開通該模塊的子站會被擋下；(4) 若模塊需開放給機器／廠商以 App Token 呼叫：在**自己的模塊**寫 `Factory{Xxx}Controller`（`Controllers/` 根層），路由放自己的 `routes/api.php`，路徑 `/api/factory/{模塊}/...`、掛 `module:{code}` ＋ `factory.auth` ＋ `factory.scope:{scope}`，並標 `@api-auth app`／`@api-scope`（命名與註解規則見 README 5.8、本文件 12.9），**不要放進 `app/Api/Factory`**（該模塊只放 App 管理）。
 15. **禁止對 `site_current` 連線的 Model 使用 Laravel 隱式路由模型綁定**（Controller 方法參數直接型別提示成 Model，例如 `function update(Role $role)`）。Laravel 的 `SubstituteBindings` 會在請求進到 Controller 方法前先查一次資料庫，這個時間點在本專案的中介層順序下拿到的是 `config/database.php` 裡刻意設成無效主機的 `site_current` 預留值（見 6.4），查詢一律失敗且會噴出不易辨識的錯誤（曾表現為 `Malformed UTF-8 characters` 這種文不對題的訊息，因為 SQL 例外訊息本身混進了系統語系的錯誤字串，JSON 編碼失敗才蓋掉了真正原因）。正確做法：路由參數收 `int`（例如 `function update(int $role)`），進入方法本體後（`site.context` 已執行完畢）自己手動 `Role::query()->findOrFail($role)`，見 `RoleController`／`UserController` 的寫法。
 16. **每個檔案開頭需加上文件 Header 註解**，格式固定如下（PHP／JS／Vue 一律比照辦理，Vue 檔案放在 `<script>` 區塊最上方）：
     ```php
@@ -1839,7 +1892,7 @@ php artisan config:cache && php artisan route:cache && php artisan view:cache
 | `composer run swagger:generate`（12.7／18.2-6） | `composer.json` **沒有**這個 script | 用 `php artisan swagger:generate --pretty` |
 | `POST /api/site/sites`（6.3） | 實際路由是 `POST /api/hq/sites` | 見 `php artisan route:list`（`app/Hq/Site`） |
 | `site:create ... --clone-from=`（6.3） | 指令**沒有**這個選項，只有 `--type` | 想複製既有站客製化內容，目前需人工複製目錄後再建站 |
-| 廠商模式 `/api/factory/*`（8.6、12.8、18.3） | **路由不存在**，屬規劃未實作 | 目前不要照該範例測試 |
+| 廠商模式 `/api/factory/*`（12.8、12.9、18.3） | **換 token ＋ scope 授權已實作**（`/api/factory/token`、`/api/factory/guest/applies`）；**app token 換 user token（`/api/factory/auth/login`）尚未實作** | 第 2 步先不要測；其餘照 12.9／18.3 |
 | 初始帳號 `hq_admin`／`super_admin`（18.3） | 預設是 `admin`；子站系統管理員預設為**站代碼** | 見本檔第 8 節 |
 | Tier 2 動態掛載客製頁（8.3）、Tier 3 主體＋overrides 疊加建置（8.4） | `custom_routes` 固定回空陣列；`vue:build --site=` 只換輸出目錄 | 見本檔 10.2 落差表 |
 | `vue:build --output=`（`DEPLOY.md`、6.8） | 指令**沒有**此選項 | 見本檔 10.2 落差表 |

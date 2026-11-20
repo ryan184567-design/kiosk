@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use App\Api\Guest\Controllers\GuestApplyController;
 use App\Api\Guest\Controllers\GuestSlotController;
 use App\Api\Guest\Controllers\VisitorMachineController;
+use App\Api\Guest\Controllers\FactoryGuestApplyController;
 
 
 Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function () {
@@ -26,4 +27,11 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.slotUpdate')->put('/{id}', [GuestSlotController::class, 'slotUpdate'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.slotDestroy')->delete('/{id}', [GuestSlotController::class, 'slotDestroy'])->whereNumber('id');
     });
+});
+
+// 廠商模式（App Token）：訪客機以 App 身份呼叫，路徑一律在 /api/factory/*（DEVELOP.MD 12.8）。
+// 認證用 factory.auth、權限用 factory.scope，與上面的用戶 jwt.auth／permission.api 是兩套互不相干的認證；
+// 新增接口後執行 `php artisan factory:sync-scopes` 登記 scope。
+Route::prefix('factory/guest')->middleware(['module:guest', 'factory.auth'])->group(function () {
+    Route::get('applies', [FactoryGuestApplyController::class, 'index'])->middleware('factory.scope:guest.apply.read');
 });

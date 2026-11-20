@@ -132,6 +132,13 @@ return [
     // 只是沒有中文化，不影響「使用者看得出來是哪裡的問題」這個目標。
     'attributes' => [
         'username' => '帳號',
+        'fast_pass_code' => '速通碼',
+        'app_id' => 'app_id',
+        'timestamp' => '時間戳',
+        'nonce' => 'nonce',
+        'sign' => '簽名',
+        'allowed_ips' => 'IP 白名單',
+        'scopes' => '授權 scope',
         'password' => '密碼',
         'current_password' => '目前密碼',
         'portal_key' => '端口代碼',

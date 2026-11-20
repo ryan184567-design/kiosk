@@ -44,6 +44,7 @@ class ApiAnnotationValidator
             $this->validatePortal($parsed, $context);
         }
 
+        $this->validateAuth($parsed, $context);
         $this->validateRequestFields($parsed, $httpMethod, $context);
         $this->validateResponseFields($parsed, $context);
     }
@@ -52,6 +53,23 @@ class ApiAnnotationValidator
     {
         if (empty($parsed[$tag])) {
             throw new RuntimeException("[{$context}] 缺少必填標註 @api-{$tag}（見 README 12.1）。");
+        }
+    }
+
+    // 見 DEVELOP.MD 12.9：@api-auth 只能是 app（App 認證 + scope）或 public（不需認證，如換 token）；
+    // 標 app 必須同時有 @api-scope，且格式與路由上的 factory.scope:xxx 一致。
+    private function validateAuth(array $parsed, string $context): void
+    {
+        if (! array_key_exists('auth', $parsed)) {
+            return;
+        }
+
+        if (! in_array($parsed['auth'], ['app', 'public'], true)) {
+            throw new RuntimeException("[{$context}] @api-auth 只允許 app 或 public：{$parsed['auth']}");
+        }
+
+        if ($parsed['auth'] === 'app' && ! preg_match('/^(\*|[a-z0-9_]+(\.[a-z0-9_]+)*(\.\*)?)$/', (string) ($parsed['scope'] ?? ''))) {
+            throw new RuntimeException("[{$context}] @api-auth app 必須搭配格式正確的 @api-scope（例如 guest.apply.read）。");
         }
     }
 

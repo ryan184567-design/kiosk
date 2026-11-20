@@ -57,5 +57,11 @@ class AppServiceProvider extends ServiceProvider
         // 見 README 6.8：單站部署包輸出也吃磁碟 I/O 與空間（整包複製共用程式碼），
         // 用比開站更嚴的限流，避免後台被連續點擊或迴圈呼叫灌爆。
         RateLimiter::for('site-package', fn (Request $request) => Limit::perMinute(3)->by($request->ip()));
+
+        // App 簽發 token 限流：按 IP 與 app_id 分別限制，見 docs/APP_DEVELOP.MD 8 節
+        RateLimiter::for('factory-token', fn (Request $request) => [
+            Limit::perMinute((int) config('factory.token_rate_per_ip'))->by('ip:'.$request->ip()),
+            Limit::perMinute((int) config('factory.token_rate_per_app'))->by('app:'.(string) $request->input('app_id')),
+        ]);
     }
 }
