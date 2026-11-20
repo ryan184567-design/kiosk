@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('guest_applies', function (Blueprint $table) {
-            $table->boolean('consent_form')->after('reservation_status')->comment('訪客須知與同意條款: 0:未同意 1:同意');
+            $table->boolean('consent_form')->default(0)->after('reservation_status')->comment('訪客須知與同意條款: 0:未同意 1:同意');
         });
     }
 

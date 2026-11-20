@@ -83,6 +83,7 @@ class GuestApplyService
             'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(10000000, 99999999)),
             'reservation_type' => $reservation_type,
             'reservation_status' => $reservation_status,
+            'consent_form' => 0,
         ]);
 
         foreach ($visitors as $v) {
