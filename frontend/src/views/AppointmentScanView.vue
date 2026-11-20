@@ -1,6 +1,6 @@
 <script setup>
 // ② 有預約：掃描 QR Code 或輸入速通碼（QR Code 的內容即為速通碼）
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
@@ -8,6 +8,7 @@ import { QrcodeOutlined } from '@ant-design/icons-vue'
 import KioskLayout from '@/components/KioskLayout.vue'
 import NumericKeypad from '@/components/NumericKeypad.vue'
 import { PASS_CODE_LENGTH, clearStepsFrom, isValidPassCode, visit } from '@/stores/visit'
+import { useKeyboardScanner } from '@/composables/useKeyboardScanner'
 import { debug } from '@/utils/logger'
 
 const router = useRouter()
@@ -34,8 +35,7 @@ const submitKeypad = () => {
   submitPassCode(passCode.value, 'keypad')
 }
 
-const submitQr = (raw) => {
-  const code = raw.trim()
+const submitQr = (code) => {
   if (!isValidPassCode(code)) {
     debug('Flow', `② QR Code 內容不是有效的速通碼（${code.length} 字元）：${code}`)
     message.warning(t('scan.invalidQr'))
@@ -45,74 +45,10 @@ const submitQr = (raw) => {
   submitPassCode(code, 'scan')
 }
 
-// QR Code 掃描器一般為「鍵盤模擬」輸入：短時間內連續送出字元並以 Enter 結尾
-// 鍵盤輸入只用來接收掃描器資料，不會填入速通碼欄位（手動輸入僅能使用畫面數字鍵盤）
-// 以字元間隔判斷是否為掃描器：間隔超過 SCAN_GAP_MS 視為人工按鍵，暫存會被清空
-const SCAN_GAP_MS = 50
-const MIN_QR_LENGTH = 6
-let buffer = ''
-let lastTime = 0
-// 以下僅供 debug 診斷：自上次 Enter 起收到的按鍵數與最大按鍵間隔
-let rawCount = 0
-let maxGap = 0
-
-const onKeydown = (e) => {
-  const now = Date.now()
-  const gap = lastTime ? now - lastTime : 0
-  if (gap > SCAN_GAP_MS) buffer = ''
-  lastTime = now
-
-  if (e.key === 'Enter') {
-    e.preventDefault() // 避免同時觸發目前聚焦中的按鈕
-    debug(
-      'Flow',
-      `② 收到 Enter：有效暫存 ${buffer.length} 字元（共收到 ${rawCount} 個按鍵，最大間隔 ${maxGap}ms，判斷門檻 ${SCAN_GAP_MS}ms）`,
-    )
-    if (buffer.length >= MIN_QR_LENGTH) submitQr(buffer)
-    else debug('Flow', `② 不視為 QR Code：有效暫存少於 ${MIN_QR_LENGTH} 字元`)
-    buffer = ''
-    rawCount = 0
-    maxGap = 0
-    return
-  }
-  if (e.key.length === 1) {
-    if (rawCount > 0) maxGap = Math.max(maxGap, gap)
-    rawCount += 1
-    buffer += e.key
-  }
-}
-
-// ── 鍵盤焦點 ──
-// 掃描器輸入需要瀏覽器頁面擁有鍵盤焦點；若焦點在網址列、DevTools 或其他視窗，網頁收不到按鍵。
-// 進入頁面時主動把焦點移到頁面上，並顯示掃描器是否可接收的狀態。
-const rootRef = ref()
-const scanReady = ref(document.hasFocus())
-
-const grabFocus = () => {
-  window.focus()
-  rootRef.value?.focus({ preventScroll: true })
-  scanReady.value = document.hasFocus()
-}
-const onWindowFocus = () => {
-  scanReady.value = true
-  debug('Flow', '② 頁面取得焦點，掃描器可接收')
-}
-const onWindowBlur = () => {
-  scanReady.value = false
-  debug('Flow', '② 頁面失去焦點，掃描器輸入將無法接收')
-}
-
-onMounted(() => {
-  window.addEventListener('keydown', onKeydown)
-  window.addEventListener('focus', onWindowFocus)
-  window.addEventListener('blur', onWindowBlur)
-  grabFocus()
-  debug('Flow', `② 進入掃描頁，頁面焦點：${scanReady.value ? '有' : '無（需點擊畫面）'}`)
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', onKeydown)
-  window.removeEventListener('focus', onWindowFocus)
-  window.removeEventListener('blur', onWindowBlur)
+// QR Code 掃描器輸入（鍵盤輸入只用來接收掃描器資料，手動輸入僅能使用畫面數字鍵盤）
+const { rootRef, scanReady, grabFocus } = useKeyboardScanner({
+  onScan: submitQr,
+  tag: '②',
 })
 </script>
 
