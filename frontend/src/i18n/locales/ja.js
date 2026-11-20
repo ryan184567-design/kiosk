@@ -14,6 +14,8 @@ export default {
     appointmentDesc: 'QRコードをスキャン\nまたはパスコードを入力',
     walkIn: '予約なし',
     walkInDesc: 'セルフ登録',
+    checkOut: '退館',
+    checkOutDesc: '入館証をタッチ\nまたはQRコードをスキャン',
   },
   scan: {
     title: '予約あり',
@@ -135,6 +137,39 @@ export default {
     badgeNo: '来訪者証番号',
     countdown: '{n} 秒後にホームに戻ります',
     finish: '完了',
+  },
+  checkOut: {
+    title: '退館',
+    subtitle: '入館カード（入館証）をタッチするか、パスコードのQRコードをスキャンしてください',
+    card: '入館カードをタッチ',
+    cardHint: '入館証をカードリーダーにかざしてください',
+    qr: 'QRコードをスキャン',
+    qrHint: 'パスコードのQRコードをスキャナーにかざしてください',
+    processing: '退館処理中...',
+    successTitle: '退館が完了しました',
+    successHint: 'ご来訪ありがとうございました。',
+    visitor: '来訪者',
+    time: '退館時刻',
+    lockerReminder: '{slot} 番ロッカーから身分証をお受け取りください',
+    rescan: '再スキャン',
+    errors: {
+      notFound: {
+        title: '来訪記録が見つかりません',
+        hint: 'カードまたはQRコードをご確認いただくか、受付までお問い合わせください',
+      },
+      alreadyCheckedOut: {
+        title: '退館済みです',
+        hint: 'この来訪はすでに退館処理されています。ご不明な点は受付までお問い合わせください',
+      },
+      notCheckedIn: {
+        title: 'チェックインされていません',
+        hint: 'この予約はまだチェックインされていないため、退館できません。受付までお問い合わせください',
+      },
+      failed: {
+        title: '退館に失敗しました',
+        hint: 'システムが一時的に利用できません。しばらくしてから再度お試しいただくか、受付までお問い合わせください',
+      },
+    },
   },
   notFound: {
     title: 'ページが見つかりません',

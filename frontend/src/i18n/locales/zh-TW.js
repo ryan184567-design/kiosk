@@ -14,6 +14,8 @@ export default {
     appointmentDesc: '請掃描 QR Code\n或輸入速通碼',
     walkIn: '無預約',
     walkInDesc: '自助登記',
+    checkOut: '離場',
+    checkOutDesc: '請感應訪客證\n或掃描速通碼 QR Code',
   },
   scan: {
     title: '有預約',
@@ -135,6 +137,36 @@ export default {
     badgeNo: '訪客證號',
     countdown: '{n} 秒後自動返回首頁',
     finish: '完成',
+  },
+  checkOut: {
+    title: '離場',
+    subtitle: '請感應門禁卡（訪客證）或掃描速通碼 QR Code',
+    card: '感應門禁卡',
+    cardHint: '請將訪客證靠近讀卡機',
+    qr: '掃描 QR Code',
+    qrHint: '請將速通碼 QR Code 對準掃描區',
+    processing: '離場處理中...',
+    successTitle: '離場完成',
+    successHint: '感謝您的蒞臨，祝您有美好的一天！',
+    visitor: '訪客',
+    time: '離場時間',
+    lockerReminder: '請記得至 {slot} 號格位取回您的證件',
+    rescan: '重新掃描',
+    errors: {
+      notFound: {
+        title: '查無訪客紀錄',
+        hint: '請確認門禁卡或 QR Code 是否正確，或洽櫃台人員協助',
+      },
+      alreadyCheckedOut: {
+        title: '您已完成離場',
+        hint: '此訪客紀錄已辦理過離場，如有疑問請洽櫃台人員',
+      },
+      notCheckedIn: {
+        title: '尚未報到',
+        hint: '此預約尚未完成報到，無法辦理離場，請洽櫃台人員協助',
+      },
+      failed: { title: '離場失敗', hint: '系統暫時無法處理，請稍後再試或洽櫃台人員協助' },
+    },
   },
   notFound: {
     title: '找不到此頁面',

@@ -4,7 +4,7 @@ import { debug } from '@/utils/logger'
 import { appConfig } from '@/config'
 
 const initialState = () => ({
-  mode: null, // 'appointment' 有預約 | 'walkIn' 無預約
+  mode: null, // 'appointment' 有預約 | 'walkIn' 無預約 | 'checkOut' 離場
 
   // ── 有預約 ──
   passCode: '', // 速通碼（即 QR Code 內容號碼）
@@ -26,6 +26,12 @@ const initialState = () => ({
     form: null, // 填寫的訪客資料 { name, phone, email, company, purpose }
   },
   registration: null, // 送出登記後的結果 { id }
+
+  // ── 離場 ──
+  checkOut: {
+    code: '', // 掃描到的內容（門禁卡號或速通碼 QR Code），由後端判斷類型
+    result: null, // 離場成功的結果 { visitorName, company, checkOutAt, locker }
+  },
 })
 
 export const visit = reactive(initialState())
