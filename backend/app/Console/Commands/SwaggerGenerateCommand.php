@@ -253,6 +253,9 @@ class SwaggerGenerateCommand extends Command
             $schema = $this->leafSchema($field['type'], $field['description'], $dicts, $field['path']);
             $description = $schema['description'] ?? $field['description'];
             unset($schema['description']);
+            // query 參數不給預設值：Swagger UI 會把 example 預填進輸入框，變成帶著篩選條件送出；
+            // 留空才代表「沒有這個查詢條件」。範例回傳值仍保留，只有查詢參數不預填。
+            unset($schema['example']);
 
             $parameters[] = [
                 'name' => $field['path'],
