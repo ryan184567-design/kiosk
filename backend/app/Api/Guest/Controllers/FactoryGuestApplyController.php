@@ -16,6 +16,7 @@ use App\Api\Guest\Models\GuestSlot;
 use App\Api\Guest\Services\GuestApplyService;
 use App\Api\Guest\Services\GuestSlotService;
 
+use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ use RuntimeException;
 class FactoryGuestApplyController extends BaseApiController
 {
     use MapsServiceExceptions;
+    use PaginationHelper;
 
     /**
      * @api-method GET
@@ -39,7 +41,7 @@ class FactoryGuestApplyController extends BaseApiController
      * 訪客機以速通碼查詢「今天、已通知」的預約單，只回傳訪客機需要的欄位。
      * 查無資料（速通碼錯誤、非今天、狀態不符、已取消）回 404。
      * 查詢參數（query string）：`fast_pass_code`（必填，速通碼），例如 `GET /api/factory/guest/applies?fast_pass_code=12345678`。
-     * @api-no-request-body
+     * @api-query-field fast_pass_code int 速通碼
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
      * @api-response-field data.host_name string 受訪人
@@ -214,28 +216,41 @@ class FactoryGuestApplyController extends BaseApiController
      * @api-method GET
      * @api-path /api/factory/guest/slot
      * @api-tag Factory
-     * @api-summary 查詢證件櫃
+     * @api-summary 證件櫃列表
      * @api-portal *
      * @api-auth app
      * @api-scope guest.apply.slot
      * @api-description
      * 取得全部證件櫃及其目前狀態，供現場訪客機顯示可選擇的證件櫃。
      * 狀態以呼叫當下為準；實際報到時系統仍會再次檢查，已被占用的證件櫃會回傳 HTTP 404。
+     * 查詢參數（query string）：`status`（選填，使用狀態），例如 `GET /api/factory/guest/slot?status=1`。
      * @api-dict guest_slot_status 0=空閒,1=使用中
-     * @api-no-request-body
+     * @api-query-field page integer optional 頁碼（預設 1）
+     * @api-query-field per_page integer optional 每頁筆數，-1 代表全部，未傳則使用配置值
+     * @api-query-field status integer optional 使用狀態，0為未使用，1為使用中，未傳則回傳全部
      * @api-response-field data[].id int 證件櫃ID
      * @api-response-field data[].name string 證件櫃名稱
      * @api-response-field data[].status int dict:guest_slot_status 證件櫃狀態
      */
     public function slot(Request $request, GuestSlotService $slot)
     {
-        $data = $slot->slotApi();
+        $data = $this->validateInput($request, [
+            'slot' => 'nullable|integer|in:0,1',
+            'page' => 'nullable|integer|min:1',
+            'per_page' => 'nullable|integer|min:-1|max:200',
+        ]);
 
-        $data = collect($data)
-            ->map(fn (GuestSlot $guestSlot) => $this->presentSlot($guestSlot))
-            ->all();
+        $perPage = (int) ($data['per_page'] ?? -1);
 
-        return $this->success($data);
+        $result = $this->paginateOrGet(
+            $slot->slots($data['slot'] ?? null),
+            $perPage === 0 ? 10 : $perPage,
+            (int) ($data['page'] ?? 1),
+        );
+
+        $result['items'] = collect($result['items'])->map(fn (GuestSlot $g) => $this->presentSlot($g))->all();
+
+        return $this->success($result);
     }
 
     private function present(GuestApply $apply): array

@@ -9,14 +9,15 @@ use RuntimeException;
 
 class GuestSlotService
 {
-    public function slots(): Builder
+    public function slots(?int $status = null): Builder
     {
-        return GuestSlot::query();
-    }
+        $query = GuestSlot::query();
 
-    public function slotApi()
-    {
-        return GuestSlot::query()->get();
+        if ($status !== null) {
+            $query->where('status', $status);
+        }
+        
+        return $query;
     }
 
 

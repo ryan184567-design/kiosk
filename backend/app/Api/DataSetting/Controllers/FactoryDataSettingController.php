@@ -19,12 +19,12 @@ class FactoryDataSettingController extends BaseApiController
      * @api-method GET
      * @api-path /api/factory/data_setting/index
      * @api-tag Factory
-     * @api-summary 查詢樓層、門牌、公司名稱
+     * @api-summary 門牌列表
      * @api-portal *
      * @api-auth app
      * @api-scope data_setting.doorplate.index
      * @api-description
-     * 訪客機查詢目前樓層、門牌、公司名稱資訊
+     * 訪客機列出目前樓層、門牌、公司名稱資訊
      * @api-no-request-body
      * @api-response-field data[].id int 門牌ID
      * @api-response-field data[].doorplate int 門牌
@@ -34,7 +34,6 @@ class FactoryDataSettingController extends BaseApiController
      */
     public function index(Request $request, DataSettingService $service)
     {
-
         $data = $service->doorplateApi();
         $result = collect($data)
             ->map(fn (Doorplate $doorplate) => $this->present($doorplate))

@@ -33,6 +33,6 @@ Route::prefix('factory/guest')->middleware(['module:guest', 'factory.auth'])->gr
     Route::get('applies', [FactoryGuestApplyController::class, 'index'])->middleware('factory.scope:guest.apply.read');
     Route::post('done', [FactoryGuestApplyController::class, 'done'])->middleware('factory.scope:guest.apply.done');
     Route::post('create', [FactoryGuestApplyController::class, 'create'])->middleware('factory.scope:guest.apply.create');
-    Route::post('slot', [FactoryGuestApplyController::class, 'slot'])->middleware('factory.scope:guest.apply.slot');
+    Route::get('slot', [FactoryGuestApplyController::class, 'slot'])->middleware('factory.scope:guest.apply.slot');
     Route::post('leave', [FactoryGuestApplyController::class, 'leave'])->middleware('factory.scope:guest.apply.leave');
 });
