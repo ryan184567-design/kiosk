@@ -5,6 +5,7 @@ namespace App\Api\Guest\Controllers;
 use App\Support\Http\Controllers\BaseApiController;
 use App\Support\Api\Concerns\PaginationHelper;
 use App\Api\Guest\Services\GuestApplyService;
+use App\Api\Guest\Services\GuestReasonDictionary;
 use Illuminate\Http\Request;
 
 use App\Api\Guest\Models\Guest;
@@ -26,7 +27,7 @@ class GuestApplyController extends BaseApiController
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
      * - 已取消（reservation_status=60）的預約單也會出現在列表，可用 `reservation_status` 篩選
      * @api-portal admin
-     * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消
+     * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
      * @api-dict guest_apply_reservation_type 0=事前預約,1=現場預約
      * @api-query-field keyword string optional 搜尋關鍵字
      * @api-query-field date_from int optional 起始日期 (YYYY-MM-DD)
@@ -53,11 +54,12 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.items[].visitor[].guest_name string 來訪者姓名
      * @api-response-field data.items[].visitor[].guest_company_name string 公司名稱
      * @api-response-field data.items[].visitor[].guest_phone string 手機號碼
+     * @api-response-field data.reason array 來訪事由列表
      * @api-response-field data.total int 符合條件的總筆數
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function index(Request $request, GuestApplyService $service)
+    public function index(Request $request, GuestApplyService $service, GuestReasonDictionary $reason)
     {
         $data = $this->validateInput($request, [
             'keyword' => 'nullable|string|max:100',
@@ -68,6 +70,7 @@ class GuestApplyController extends BaseApiController
             'per_page' => 'nullable|int|min:-1|max:200',
         ]);
 
+        $reasonList = $reason->labels();
         $perPage = (int) ($data['per_page'] ?? 10);
 
         $result = $this->paginateOrGet(
@@ -82,6 +85,7 @@ class GuestApplyController extends BaseApiController
         );
 
         $result['items'] = collect($result['items'])->map(fn (GuestApply $a) => $this->presentListItem($a))->all();
+        $result['reason'] = $reasonList;
 
         return $this->success($result);
     }
@@ -353,7 +357,7 @@ class GuestApplyController extends BaseApiController
             'visit_end_time' => ['required', 'date_format:H:i', 'after:visit_start_time'],
             'guest_count' => ['required', 'int', 'min:1', 'max:50'],
             'host_name' => ['required', 'string', 'max:100'],
-            'visit_reason' => ['required', 'int', 'max:50'],
+            'visit_reason' => ['required', 'int', 'max:100'],
             'remark' => ['nullable', 'string', 'max:200'],
             'is_email_notify' => ['nullable', 'boolean'],
             'is_sms_notify' => ['nullable', 'boolean'],

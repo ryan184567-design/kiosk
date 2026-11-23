@@ -7,12 +7,11 @@ use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Export\TableExporter;
 use Illuminate\Http\Request;
 
-use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 
 use App\Api\Guest\Services\GuestRecordService;
 use App\Api\Guest\Services\GuestApprovalService;
-use Psy\CodeCleaner\FunctionReturnInWriteContextPass;
+use App\Api\Guest\Services\GuestReasonDictionary;
 
 class GuestApprovalController extends BaseApiController
 {
@@ -35,7 +34,7 @@ class GuestApprovalController extends BaseApiController
      * - `guest_name`、`company_name` 比對來訪者姓名、公司名稱；`visit_reason` 比對來訪事由；`keyword` 同時比對單號、受訪人、來訪者姓名、公司、手機、車牌（皆為模糊查詢）
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
      * @api-portal admin
-     * @api-dict guest_record_status 40=在場中,50=已離場
+     * @api-dict guest_record_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
      * @api-dict guest_record_export 0=JSON列表,1=Excel,2=PDF
      * @api-query-field export int 輸出類型，選填，預設 0；0=JSON列表、1=Excel、2=PDF
      * @api-query-field date_from string 預約日期起 YYYY-MM-DD，選填
@@ -54,16 +53,18 @@ class GuestApprovalController extends BaseApiController
      * @api-response-field data.items[].guest_title string 來訪者職稱，有多位時為第一位，未填為 null
      * @api-response-field data.items[].guest_phone string 來訪者手機號碼，有多位時為第一位，未填為 null
      * @api-response-field data.items[].guest_email string 來訪者Email，有多位時為第一位，未填為 null
+     * @api-response-field data.items[].remark string 備註
      * @api-response-field data.items[].guest_count int 訪客人數
      * @api-response-field data.items[].visit_reason string 來訪事由，未填為 null
      * @api-response-field data.items[].host_company_name string 受訪公司名稱，門牌不存在時為 null
      * @api-response-field data.items[].host_floor string 接待樓層，門牌不存在時為 null
      * @api-response-field data.items[].host_name string 受訪人
+     * @api-response-field data.reason array 來訪事由列表
      * @api-response-field data.total int 符合條件的總筆數
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function approval(Request $request, GuestApprovalService $service, TableExporter $exporter)
+    public function approval(Request $request, GuestApprovalService $service, TableExporter $exporter, GuestReasonDictionary $reasons)
     {
         $data = $this->validateInput($request, [
             'export' => 'nullable|integer|in:0,1,2',
@@ -85,7 +86,7 @@ class GuestApprovalController extends BaseApiController
         $export = (int) ($data['export'] ?? self::EXPORT_JSON);
 
         if ($export !== self::EXPORT_JSON) {
-            return $this->export($export, $query->limit(GuestRecordService::EXPORT_LIMIT)->get()->all(), $exporter);
+            return $this->export($export, $query->limit(GuestRecordService::EXPORT_LIMIT)->get()->all(), $exporter, $reasons);
         }
 
         $perPage = (int) ($data['per_page'] ?? 10);
@@ -97,6 +98,7 @@ class GuestApprovalController extends BaseApiController
         );
 
         $result['items'] = collect($result['items'])->map(fn (GuestApply $a) => $this->present($a))->all();
+        $result['reason'] = $reasons->labels();
 
         return $this->success($result);
 
@@ -108,7 +110,8 @@ class GuestApprovalController extends BaseApiController
      * @api-tag GuestApproval
      * @api-summary 訪客審核人數
      * @api-description
-     *
+     * 待審核包含待審核(0)與修改待審核(1)，已核准包含已核准(10)與修改已核准(11)
+     * 訪客人數以`guest_count`人次加總，訪客人數不包含狀態`reservation_status`為未到(30)、已取消(60)、已拒絕(70)
      * @api-portal admin
      * @api-no-request-body
      * @api-response-field data.status[].0 int 待審核
@@ -131,6 +134,37 @@ class GuestApprovalController extends BaseApiController
         $result['weekly'] = $weekly;
 
         return $result;
+    }
+
+    /** 列表匯出：1 Excel、2 PDF，欄位與畫面上的清單一致 */
+    private function export(int $export, array $applies, TableExporter $exporter, GuestReasonDictionary $reasons)
+    {
+        $title = __('api.guest_record.export_title');
+        $headers = array_values(__('api.guest_record.export_headers'));
+
+        $rows = array_map(function (GuestApply $a) use ($reasons) {
+            $first = $a->guests->first();
+
+            return [
+                $a->reservation_id,
+                $this->visitAt($a),
+                $first?->name,
+                $first?->company_name,
+                $reasons->label($a->visit_reason),
+                $a->doorplate?->company_name,
+                $a->doorplate?->floor,
+                $a->host_name,
+                $a->check_in_at?->format('Y-m-d H:i'),
+                $a->check_out_at?->format('Y-m-d H:i'),
+                $this->statusLabel($a->reservation_status),
+            ];
+        }, $applies);
+
+        $filename = 'guest_records_'.now()->format('YmdHis').($export === self::EXPORT_EXCEL ? '.xlsx' : '.pdf');
+
+        return $export === self::EXPORT_EXCEL
+            ? $exporter->xlsx($title, $headers, $rows, $filename)
+            : $exporter->pdf($title, $headers, $rows, $filename);
     }
 
     private function hhmm(?string $time): ?string

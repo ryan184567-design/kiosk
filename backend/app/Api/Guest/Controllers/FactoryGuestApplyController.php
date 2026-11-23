@@ -96,7 +96,7 @@ class FactoryGuestApplyController extends BaseApiController
     {
         $data = $this->validateInput($request, [
             'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
-            'visit_reason' => ['required', 'int', 'max:50'],
+            'visit_reason' => ['required', 'int', 'max:100'],
             'visitor' => ['required', 'array', 'min:1', 'max:10'],
             'visitor.*.name' => ['required', 'string', 'max:100'],
             'visitor.*.company_name' => ['required', 'string', 'max:150'],

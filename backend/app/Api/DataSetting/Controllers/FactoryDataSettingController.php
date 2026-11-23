@@ -4,6 +4,7 @@ namespace App\Api\DataSetting\Controllers;
 
 use App\Api\DataSetting\Models\Doorplate;
 use App\Api\DataSetting\Services\DataSettingService;
+use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
@@ -26,13 +27,14 @@ class FactoryDataSettingController extends BaseApiController
      * 訪客機列出目前樓層、門牌、公司名稱資訊
      * @api-query-field page int optional 頁碼（預設 1）
      * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
-     * @api-response-field data[].id int 門牌ID
-     * @api-response-field data[].doorplate int 門牌
-     * @api-response-field data[].floor int 樓層
-     * @api-response-field data[].household int 室/戶/之
-     * @api-response-field data[].company_name string 公司名稱
+     * @api-response-field data.items[].id int 門牌ID
+     * @api-response-field data.items[].doorplate int 門牌
+     * @api-response-field data.items[].floor int 樓層
+     * @api-response-field data.items[].household int 室/戶/之
+     * @api-response-field data.items[].company_name string 公司名稱
+     * @api-response-field data.reason array 來訪事由列表
      */
-    public function index(Request $request, DataSettingService $service)
+    public function index(Request $request, DataSettingService $service, GuestReasonDictionary $reason)
     {
         $data = $this->validateInput($request, [
             'page' => 'nullable|int|min:1',
@@ -50,6 +52,8 @@ class FactoryDataSettingController extends BaseApiController
         $result['items'] = collect($result['items'])
             ->map(fn (Doorplate $doorplate) => $this->present($doorplate))
             ->all();
+
+        $result['reason'] = $reason->labels();
 
         return $this->success($result);
     }
