@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Api\Guest\Controllers\GuestApplyController;
+use App\Api\Guest\Controllers\GuestApprovalController;
 use App\Api\Guest\Controllers\GuestRecordController;
 use App\Api\Guest\Controllers\GuestReportController;
 use App\Api\Guest\Controllers\GuestSlotController;
@@ -18,6 +19,11 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.cancel')->put('/{id}/cancel', [GuestApplyController::class, 'cancel'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.statusChange')->put('/{id}/status', [GuestApplyController::class, 'statusChange'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.destroy')->delete('/{id}', [GuestApplyController::class, 'destroy'])->whereNumber('id');
+    });
+
+    Route::prefix('approvals')->group(function () {
+        Route::middleware('permission.api:api.guest.approval')->get('/', [GuestApprovalController::class, 'approval']);
+        Route::middleware('permission.api:api.guest.approvalStatus')->get('/data', [GuestApprovalController::class, 'approvalStatus']);
     });
 
     // 訪客記錄：/stats 要放在 /{id} 之前（雖然 {id} 已限數字，保持順序一致較不易出錯）

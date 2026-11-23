@@ -16,7 +16,7 @@ class GuestSlotService
         if ($status !== null) {
             $query->where('status', $status);
         }
-        
+
         return $query;
     }
 
@@ -36,10 +36,6 @@ class GuestSlotService
         $slot = GuestSlot::query()->find($id);
         if (! $slot) {
             throw new RuntimeException(__('api.guest_slot.not_found'));
-        }
-
-        if ($slot->status == 1) {
-            throw new RuntimeException(__('api.guest_slot.in_use'));
         }
 
         $slot->update([

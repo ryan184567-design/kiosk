@@ -39,7 +39,7 @@ class GuestSlotController extends BaseApiController
     public function slotIndex(Request $request, GuestSlotService $slot)
     {
         $data = $this->validateInput($request, [
-            'slot' => 'nullable|int|in:0,1',
+            'status' => 'nullable|int|in:0,1',
             'page' => 'nullable|int|min:1',
             'per_page' => 'nullable|int|min:-1|max:200',
         ]);
@@ -47,7 +47,7 @@ class GuestSlotController extends BaseApiController
         $perPage = (int) ($data['per_page'] ?? 10);
 
         $result = $this->paginateOrGet(
-            $slot->slots($data['slot'] ?? null),
+            $slot->slots($data['status'] ?? null),
             $perPage === 0 ? 10 : $perPage,
             (int) ($data['page'] ?? 1),
         );
@@ -123,7 +123,7 @@ class GuestSlotController extends BaseApiController
      * @api-request-field status int 使用狀態
      * @api-request-field reservation_id string 預約單號，選填
      * @api-request-example
-     * {"name": "E02","remark": "專放證件", "status": 1}
+     * {"name": "E02","remark": "專放證件", "status": 0}
      * @api-response-empty
      */
     public function slotUpdate(Request $request, string $id, GuestSlotService $slot)
