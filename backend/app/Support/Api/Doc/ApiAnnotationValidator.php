@@ -47,6 +47,10 @@ class ApiAnnotationValidator
         $this->validateAuth($parsed, $context);
         $this->validateRequestFields($parsed, $httpMethod, $context);
         $this->validateResponseFields($parsed, $context);
+
+        foreach ($this->parser->queryFields($parsed) as $field) {
+            $this->validateFieldEntry($field, $parsed, $context, 'query-field');
+        }
     }
 
     private function requireNonEmpty(array $parsed, string $tag, string $context): void

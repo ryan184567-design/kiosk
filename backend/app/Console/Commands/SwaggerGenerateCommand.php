@@ -224,6 +224,40 @@ class SwaggerGenerateCommand extends Command
         $dicts = $this->indexDicts($parser->dicts($parsed));
         $requestFields = $parser->requestFields($parsed);
 
+        // path 參數（{id}）：OpenAPI 規定必須宣告，否則 Swagger UI 無法代入路徑；預設 integer。
+        // query 參數見 @api-query-field（GET／DELETE 的 query string）。
+        $parameters = [];
+
+        preg_match_all('/\{(\w+)\}/', (string) ($parsed['path'] ?? ''), $pathMatches);
+
+        foreach ($pathMatches[1] as $name) {
+            $parameters[] = [
+                'name' => $name,
+                'in' => 'path',
+                'required' => true,
+                'schema' => ['type' => 'integer'],
+                'description' => "路徑參數 {$name}",
+            ];
+        }
+
+        foreach ($parser->queryFields($parsed) as $field) {
+            $schema = $this->leafSchema($field['type'], $field['description'], $dicts);
+            $description = $schema['description'] ?? $field['description'];
+            unset($schema['description']);
+
+            $parameters[] = [
+                'name' => $field['path'],
+                'in' => 'query',
+                'required' => str_contains($field['description'], '必填'),
+                'description' => $description,
+                'schema' => $schema,
+            ];
+        }
+
+        if ($parameters) {
+            $operation['parameters'] = $parameters;
+        }
+
         if ($requestFields) {
             // 有 file 型別欄位代表這是 multipart 上傳（見 10.4），content-type
             // 要用 multipart/form-data，不能標成 application/json（那樣送不了

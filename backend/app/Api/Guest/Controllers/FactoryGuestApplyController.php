@@ -39,6 +39,7 @@ class FactoryGuestApplyController extends BaseApiController
      * 訪客機以速通碼查詢「今天、已通知」的預約單，只回傳訪客機需要的欄位。
      * 查無資料（速通碼錯誤、非今天、狀態不符、已取消）回 404。
      * 查詢參數（query string）：`fast_pass_code`（必填，速通碼），例如 `GET /api/factory/guest/applies?fast_pass_code=12345678`。
+     * @api-query-field fast_pass_code string 速通碼，必填，最長 20 字元
      * @api-no-request-body
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
