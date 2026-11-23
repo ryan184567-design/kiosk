@@ -19,6 +19,9 @@ class GuestSlotController extends BaseApiController
      * @api-tag GuestSlot
      * @api-summary 列出證件櫃
      * @api-description
+     * 取得全部證件櫃及其目前狀態，供現場訪客機顯示可選擇的證件櫃。
+     * 狀態以呼叫當下為準；實際報到時系統仍會再次檢查，已被占用的證件櫃會回傳 HTTP 404。
+     * 查詢參數（query string）：`status`（選填，使用狀態），例如 `GET /api/factory/guest/slot?status=1`。
      * 分頁參數 `per_page=-1`（預設）代表不分頁，回傳全部。
      * @api-portal *
      * @api-query-field page int optional 頁碼（預設 1）

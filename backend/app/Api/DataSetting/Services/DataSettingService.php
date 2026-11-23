@@ -16,11 +16,6 @@ class DataSettingService
         return Doorplate::query();
     }
 
-    public function doorplateApi()
-    {
-        return Doorplate::query()->get();
-    }
-
     public function building(): Builder
     {
         return Building::query();

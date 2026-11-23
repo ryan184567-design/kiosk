@@ -7,7 +7,6 @@ use App\Api\DataSetting\Services\DataSettingService;
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
-use RuntimeException;
 
 // 機器接口標註慣例見 FactoryAuthController 開頭與 DEVELOP.MD 12.9：@api-auth app + @api-scope，
 // 權限由路由上的 factory.scope:xxx 聲明，兩者要一致。
@@ -25,7 +24,8 @@ class FactoryDataSettingController extends BaseApiController
      * @api-scope data_setting.doorplate.index
      * @api-description
      * 訪客機列出目前樓層、門牌、公司名稱資訊
-     * @api-no-request-body
+     * @api-query-field page int optional 頁碼（預設 1）
+     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
      * @api-response-field data[].id int 門牌ID
      * @api-response-field data[].doorplate int 門牌
      * @api-response-field data[].floor int 樓層
@@ -34,8 +34,20 @@ class FactoryDataSettingController extends BaseApiController
      */
     public function index(Request $request, DataSettingService $service)
     {
-        $data = $service->doorplateApi();
-        $result = collect($data)
+        $data = $this->validateInput($request, [
+            'page' => 'nullable|int|min:1',
+            'per_page' => 'nullable|int|min:-1|max:200',
+        ]);
+
+        $perPage = (int) ($data['per_page'] ?? -1);
+
+        $result = $this->paginateOrGet(
+            $service->doorplate(),
+            $perPage === 0 ? 10 : $perPage,
+            (int) ($data['page'] ?? 1),
+        );
+
+        $result['items'] = collect($result['items'])
             ->map(fn (Doorplate $doorplate) => $this->present($doorplate))
             ->all();
 

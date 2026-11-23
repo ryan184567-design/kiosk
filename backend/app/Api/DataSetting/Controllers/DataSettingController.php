@@ -31,6 +31,8 @@ class DataSettingController extends BaseApiController
      * @api-description
      * 獲取所有門牌資訊
      * @api-portal *
+     * @api-query-field page int optional 頁碼（預設 1）
+     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
      * @api-response-field data.items[].id int 門牌ID
      * @api-response-field data.items[].doorplate int 門牌號碼
      * @api-response-field data.items[].floor int 樓層
@@ -43,10 +45,17 @@ class DataSettingController extends BaseApiController
      */
     public function doorplate(Request $request, DataSettingService $dataSetting)
     {
+        $data = $this->validateInput($request, [
+            'page' => 'nullable|int|min:1',
+            'per_page' => 'nullable|int|min:-1|max:200',
+        ]);
+
+        $perPage = (int) ($data['per_page'] ?? -1);
+
         $result = $this->paginateOrGet(
             $dataSetting->doorplate(),
-            (int) $request->integer('per_page', -1),
-            (int) $request->integer('page', 1),
+            $perPage === 0 ? 10 : $perPage,
+            (int) ($data['page'] ?? 1),
         );
 
         $result['items'] = collect($result['items'])
@@ -176,9 +185,7 @@ class DataSettingController extends BaseApiController
      * @api-description
      * 獲取所有樓層資訊
      * @api-portal *
-     * @api-request-field bid int 樓別ID
-     * @api-request-example
-     * {"bid": 1}
+     * @api-query-field bid int 樓別ID
      * @api-response-field floor[].bid int 樓別ID
      * @api-response-field floor[].floor int 樓層號碼
      * @api-response-field floor[].location string 地上/地下
@@ -212,6 +219,8 @@ class DataSettingController extends BaseApiController
      * @api-description
      * 獲取所有大樓資訊
      * @api-portal *
+     * @api-query-field page int optional 頁碼（預設 1）
+     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
      * @api-response-field data.items[].id int 樓別ID
      * @api-response-field data.items[].name string 大樓名稱
      * @api-response-field data.items[].on_floor int 地上樓層
@@ -223,10 +232,17 @@ class DataSettingController extends BaseApiController
      */
     public function building(Request $request, DataSettingService $dataSetting)
     {
+        $data = $this->validateInput($request, [
+            'page' => 'nullable|int|min:1',
+            'per_page' => 'nullable|int|min:-1|max:200',
+        ]);
+
+        $perPage = (int) ($data['per_page'] ?? -1);
+
         $result = $this->paginateOrGet(
             $dataSetting->building(),
-            (int) $request->integer('per_page', -1),
-            (int) $request->integer('page', 1),
+            $perPage === 0 ? 10 : $perPage,
+            (int) ($data['page'] ?? 1),
         );
 
         $result['items'] = collect($result['items'])->map(fn (Building $building) => $this->presentBuilding($building))->all();

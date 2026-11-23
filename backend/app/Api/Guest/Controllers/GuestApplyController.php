@@ -28,7 +28,12 @@ class GuestApplyController extends BaseApiController
      * @api-portal admin
      * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消
      * @api-dict guest_apply_reservation_type 0=事前預約,1=現場預約
-     * @api-no-request-body
+     * @api-query-field keyword string optional 搜尋關鍵字
+     * @api-query-field date_from int optional 起始日期 (YYYY-MM-DD)
+     * @api-query-field date_to int optional 結束日期 (YYYY-MM-DD)
+     * @api-query-field reservation_status int 預約單狀態
+     * @api-query-field page int optional 頁碼（預設 1）
+     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
      * @api-response-field data.items[].id int 預約單ID
      * @api-response-field data.items[].reservation_id string 預約單號
      * @api-response-field data.items[].reservation_type dict:guest_apply_reservation_type 預約類型
@@ -143,12 +148,12 @@ class GuestApplyController extends BaseApiController
             $data['visit_end_time'],
             $data['guest_count'],
             $data['host_name'],
-            $data['visit_reason'],
-            $data['remark'],
-            $data['is_email_notify'],
-            $data['is_sms_notify'],
-            $data['is_auto_remind'],
-            $data['remind_time'],
+            $data['visit_reason'] ?? null,
+            $data['remark'] ?? null,
+            $data['is_email_notify'] ?? null,
+            $data['is_sms_notify'] ?? null,
+            $data['is_auto_remind'] ?? null,
+            $data['remind_time'] ?? 0,
             $data['visitor'],
             $data['reservation_type'],
             $data['reservation_status'],
@@ -266,12 +271,12 @@ class GuestApplyController extends BaseApiController
             $data['visit_end_time'],
             $data['guest_count'],
             $data['host_name'],
-            $data['visit_reason'],
-            $data['remark'],
-            $data['is_email_notify'],
-            $data['is_sms_notify'],
-            $data['is_auto_remind'],
-            $data['remind_time'],
+            $data['visit_reason'] ?? null,
+            $data['remark'] ?? null,
+            $data['is_email_notify'] ?? null,
+            $data['is_sms_notify'] ?? null,
+            $data['is_auto_remind'] ?? null,
+            $data['remind_time'] ?? 0,
             $data['visitor'],
         );
 
@@ -436,6 +441,11 @@ class GuestApplyController extends BaseApiController
                 'guest_phone' => $g->phone,
             ])->all(),
         ];
+    }
+
+    private function hhmm(?string $time): ?string
+    {
+        return $time === null ? null : substr($time, 0, 5);
     }
 
 }
