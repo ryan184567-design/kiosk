@@ -21,9 +21,9 @@ class GuestSlotController extends BaseApiController
      * @api-description
      * 分頁參數 `per_page=-1`（預設）代表不分頁，回傳全部。
      * @api-portal *
-     * @api-query-field page integer optional 頁碼（預設 1）
-     * @api-query-field per_page integer optional 每頁筆數，-1 代表全部，未傳則使用配置值
-     * @api-query-field status integer optional 使用狀態，0為未使用，1為使用中，未傳則回傳全部
+     * @api-query-field page int optional 頁碼（預設 1）
+     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
+     * @api-query-field status int optional 使用狀態，0為未使用，1為使用中，未傳則回傳全部
      * @api-response-field data.items[].id int 證件櫃ID
      * @api-response-field data.items[].name string 證件櫃名稱
      * @api-response-field data.items[].reservation_id string 預約單號
@@ -36,9 +36,9 @@ class GuestSlotController extends BaseApiController
     public function slotIndex(Request $request, GuestSlotService $slot)
     {
         $data = $this->validateInput($request, [
-            'slot' => 'nullable|integer|in:0,1',
-            'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:-1|max:200',
+            'slot' => 'nullable|int|in:0,1',
+            'page' => 'nullable|int|min:1',
+            'per_page' => 'nullable|int|min:-1|max:200',
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 10);
