@@ -21,8 +21,8 @@ onMounted(async () => {
       phone: r.phone,
       company: r.company,
       hostName: r.hostName,
-      hostDept: r.hostDept,
-      purpose: r.purpose,
+      hostDept: r.hostDept, // 受訪公司
+      guestCount: r.guestCount,
     }
     debug('Flow', '③ 預約驗證成功，取得訪客資料', visit.visitor)
     router.replace('/appointment/verified')

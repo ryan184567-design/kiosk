@@ -11,6 +11,7 @@ import { printBadge } from './printer/index.js'
 import { createSettingsRouter } from './settingsRoutes.js'
 import { getScanner, startScanner } from './idscanner/index.js'
 import { getClientConfig } from './envSettings.js'
+import { createFactoryRouter } from './factoryApi.js'
 import { logger, writeLog } from './logger.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -96,6 +97,9 @@ app.post('/api/log', express.json({ limit: '512kb' }), (req, res) => {
   }
   res.status(204).end()
 })
+
+// 後端訪客機 API 代理（本機保管 App 密鑰並換取 token，見 server/factoryApi.js）
+app.use('/api/factory', express.json(), createFactoryRouter())
 
 // 不存在的 API 回傳 JSON 404（不要落到 SPA fallback 回傳 index.html）
 app.use('/api', (req, res) => res.status(404).json({ ok: false, message: `API 不存在：${req.method} ${req.originalUrl}` }))

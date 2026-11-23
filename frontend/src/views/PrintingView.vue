@@ -1,6 +1,6 @@
 <script setup>
 // ⑦ 發行並列印訪客證 → 完成後通知被拜訪員工
-//   1. issueBadge：送出訪客資料給後端，取回卡號（QR Code 內容）與訪客證號
+//   1. issueBadge：向後端完成報到（guest/done），取回門禁卡號（QR Code 內容）與預約單號（訪客證號）
 //   2. printBadge：由本機服務送到 POS 印表機（QR Code、訪客證號、證件存放格位、列印時間）
 //   3. notifyHost：通知被拜訪員工
 // 重試時不重複發卡、已列印成功也不重複列印
@@ -14,14 +14,22 @@ import { debug, logWarning } from '@/utils/logger'
 
 const router = useRouter()
 const failed = ref(false)
+// 報到時證件櫃已被占用或預約狀態不符（後端回 404）：讓訪客重新選擇證件櫃
+const slotRejected = ref(false)
 let issued = null // 已發行的訪客證 { cardNo, badgeNo }
 let printedAt = null // 列印成功的時間
 
 const run = async () => {
   failed.value = false
+  slotRejected.value = false
   try {
     if (!issued) {
-      issued = await issueBadge(visit)
+      try {
+        issued = await issueBadge(visit)
+      } catch (err) {
+        if (err?.code === 'NOT_FOUND') slotRejected.value = true
+        throw err
+      }
       debug('Flow', `⑦ 取得訪客證：卡號 ${issued.cardNo}、證號 ${issued.badgeNo}`)
     }
     if (!printedAt) {
@@ -64,14 +72,23 @@ onMounted(run)
     <StatusPanel
       v-else
       status="error"
-      :title="$t('printing.failTitle')"
-      :hint="$t('printing.failHint')"
+      :title="slotRejected ? $t('printing.checkInFailTitle') : $t('printing.failTitle')"
+      :hint="slotRejected ? $t('printing.slotRejectedHint') : $t('printing.failHint')"
     >
       <a-space :size="16">
         <a-button size="large" class="kiosk-btn" @click="router.replace('/')">
           {{ $t('common.backHome') }}
         </a-button>
-        <a-button type="primary" size="large" class="kiosk-btn" @click="run">
+        <a-button
+          v-if="slotRejected"
+          type="primary"
+          size="large"
+          class="kiosk-btn"
+          @click="router.replace('/locker')"
+        >
+          {{ $t('printing.reselectLocker') }}
+        </a-button>
+        <a-button v-else type="primary" size="large" class="kiosk-btn" @click="run">
           {{ $t('common.retry') }}
         </a-button>
       </a-space>

@@ -129,6 +129,9 @@ export default {
     badge: '訪客證',
     failTitle: '列印失敗',
     failHint: '請洽櫃台人員協助',
+    checkInFailTitle: '報到失敗',
+    slotRejectedHint: '證件櫃已被使用或預約狀態已變更，請重新選擇證件櫃',
+    reselectLocker: '重新選擇證件櫃',
   },
   notified: {
     title: '已通知被拜訪員工',

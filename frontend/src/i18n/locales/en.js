@@ -130,6 +130,9 @@ export default {
     badge: 'VISITOR',
     failTitle: 'Printing failed',
     failHint: 'Please contact the front desk',
+    checkInFailTitle: 'Check-in failed',
+    slotRejectedHint: 'The locker is already in use or the reservation has changed. Please choose another locker.',
+    reselectLocker: 'Choose another locker',
   },
   notified: {
     title: 'Your host has been notified',

@@ -1,12 +1,12 @@
 <script setup>
 // 無預約 ④ 填寫訪客基本資料 → 送出登記（系統通知受訪公司）
-import { computed, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import KioskLayout from '@/components/KioskLayout.vue'
 import WalkInSteps from '@/components/WalkInSteps.vue'
-import { registerWalkIn } from '@/api/visitor'
+import { getVisitReasons, registerWalkIn } from '@/api/visitor'
 import { visit } from '@/stores/visit'
 import { debug, logWarning } from '@/utils/logger'
 
@@ -15,7 +15,9 @@ const { t } = useI18n()
 const formRef = ref()
 const submitting = ref(false)
 
-const PURPOSES = ['business', 'meeting', 'interview', 'delivery', 'maintenance', 'other']
+// 拜訪事由由 API 取得：{ id（送給後端的 visit_reason）, label?, key?（對應 i18n walkIn.purposes.*） }
+const reasons = ref([])
+const reasonsLoading = ref(true)
 
 // 每次進入（含返回後重新進入）都是空白表單
 visit.walkIn.form = null
@@ -27,9 +29,18 @@ const form = reactive({
   purpose: undefined,
 })
 
-const purposeOptions = computed(() =>
-  PURPOSES.map((p) => ({ value: p, label: t(`walkIn.purposes.${p}`) })),
-)
+const reasonLabel = (r) => r.label || (r.key ? t(`walkIn.purposes.${r.key}`) : String(r.id))
+const purposeOptions = computed(() => reasons.value.map((r) => ({ value: r.id, label: reasonLabel(r) })))
+
+onMounted(async () => {
+  try {
+    reasons.value = await getVisitReasons()
+  } catch (err) {
+    logWarning('Flow', '④ 無預約：無法取得拜訪事由', err)
+  } finally {
+    reasonsLoading.value = false
+  }
+})
 
 const rules = computed(() => {
   const required = { required: true, message: t('walkIn.required'), trigger: 'blur' }
@@ -38,7 +49,8 @@ const rules = computed(() => {
     phone: [required, { pattern: /^09\d{8}$/, message: t('walkIn.invalidPhone'), trigger: 'blur' }],
     email: [required, { type: 'email', message: t('walkIn.invalidEmail'), trigger: 'blur' }],
     company: [required],
-    purpose: [{ ...required, trigger: 'change' }],
+    // 拜訪事由的值為數字 ID
+    purpose: [{ ...required, type: 'number', trigger: 'change' }],
   }
 })
 
@@ -51,7 +63,9 @@ const submit = async () => {
   }
   submitting.value = true
   try {
-    visit.walkIn.form = { ...form }
+    const reason = reasons.value.find((r) => r.id === form.purpose)
+    // purposeKey / purposeLabel 供櫃台螢幕顯示拜訪事由
+    visit.walkIn.form = { ...form, purposeKey: reason?.key || null, purposeLabel: reason ? reasonLabel(reason) : '' }
     debug('Flow', '④ 無預約：送出登記', visit.walkIn)
     visit.registration = await registerWalkIn({
       floor: visit.walkIn.floor,
@@ -119,6 +133,7 @@ const submit = async () => {
           <a-select
             v-model:value="form.purpose"
             :options="purposeOptions"
+            :loading="reasonsLoading"
             :placeholder="$t('walkIn.purposePlaceholder')"
           />
         </a-form-item>

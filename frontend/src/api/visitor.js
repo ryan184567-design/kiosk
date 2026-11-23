@@ -1,40 +1,94 @@
-// 訪客機 API（目前為模擬資料，之後串接後端時替換各函式內容即可）
+// 訪客機 API
 //
-// 模擬規則：
-//   - 速通碼結尾為 0000 → 查無預約
-//   - 其他速通碼 → 驗證成功
-//   - 離場的模擬規則見 checkOutImpl
+// 後端訪客機 API（/api/factory/*）一律經本機服務代理：本機保管 App 密鑰、換取 token 並轉送（見 server/factoryApi.js）
+// 證件掃描、列印由本機服務直接處理；人臉辨識、通知員工目前仍為模擬
 //
 // 所有 API 皆經 withDebugLog 包裝，debug 模式下會記錄參數、結果與耗時（見檔案最下方 export）
 
-import { withDebugLog } from '@/utils/logger'
+import { withDebugLog, logWarning } from '@/utils/logger'
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// ── 有預約 ─────────────────────────────────────────
+// ── 後端 API 共用 ──────────────────────────────────
 
-/** 驗證預約：以速通碼（QR Code 內容號碼）查詢 */
-async function verifyAppointmentImpl({ passCode }) {
-  await delay(1500)
-  if (!passCode || passCode.endsWith('0000')) {
-    const err = new Error('Appointment not found')
-    err.code = 'NOT_FOUND'
+const STATUS_CODES = { 401: 'UNAUTHORIZED', 404: 'NOT_FOUND', 422: 'VALIDATION' }
+
+/**
+ * 呼叫後端訪客機 API（經本機 /api/factory 代理）
+ * 後端回應格式：成功 { status: true, error_code: 0, data }；失敗 { status: false, error_code, error_message, trace_id }
+ * @returns {Promise<any>} 回應的 data
+ * @throws {Error} err.code：NOT_FOUND | UNAUTHORIZED | VALIDATION | NETWORK | API_ERROR；另含 status、errorCode、traceId
+ */
+async function factoryRequest(method, path, { query, body } = {}) {
+  const qs = new URLSearchParams()
+  for (const [k, v] of Object.entries(query || {})) {
+    if (v !== undefined && v !== null && v !== '') qs.append(k, String(v))
+  }
+  const url = `/api/factory${path}${qs.size ? `?${qs}` : ''}`
+
+  let res
+  try {
+    res = await fetch(url, {
+      method,
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  } catch {
+    const err = new Error('無法連線到本機服務')
+    err.code = 'NETWORK'
     throw err
   }
+
+  const data = await res.json().catch(() => null)
+  if (!res.ok || !data || data.status === false) {
+    const err = new Error(data?.error_message || `HTTP ${res.status}`)
+    err.status = res.status
+    // 本機服務連不到後端（502/504）也視為連線問題
+    err.code = STATUS_CODES[res.status] || ([502, 504].includes(res.status) ? 'NETWORK' : 'API_ERROR')
+    err.errorCode = data?.error_code
+    err.traceId = data?.trace_id
+    throw err
+  }
+  return data.data
+}
+
+/** 列表 API 的 data 實際為 { items, total, ... }（文件寫陣列），兩種都相容 */
+const listOf = (data) => (Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [])
+
+// ── 有預約 ─────────────────────────────────────────
+
+/**
+ * 驗證預約：以速通碼（QR Code 內容號碼）查詢今天、已通知的預約單
+ * @returns {{ id, reservationId, hostName, hostCompany, guestCount, visitors: Array<{ id, name, company, phone }>,
+ *             visitorName, phone, company, hostDept }}
+ *   visitorName / phone / company 取第一位來訪者；hostDept 為受訪公司（沿用畫面既有欄位）
+ * @throws {Error} 查無預約時 err.code 為 NOT_FOUND
+ */
+async function verifyAppointmentImpl({ passCode }) {
+  const d = await factoryRequest('GET', '/guest/applies', { query: { fast_pass_code: passCode } })
+  const visitors = (d.visitor || []).map((v) => ({
+    id: v.id,
+    name: v.guest_name,
+    company: v.guest_company_name || '',
+    phone: v.guest_phone || '',
+  }))
+  const first = visitors[0] || {}
   return {
-    id: `R${Date.now()}`,
+    id: d.id,
+    reservationId: d.reservation_id,
     passCode,
-    visitorName: '王小明',
-    phone: '0912345678',
-    company: '範例股份有限公司',
-    hostName: '陳經理',
-    hostDept: '業務部',
-    purpose: 'meeting',
-    visitTime: new Date().toISOString(),
+    hostName: d.host_name || '',
+    hostCompany: d.host_company_name || '',
+    guestCount: d.guest_count,
+    visitors,
+    visitorName: first.name || '',
+    phone: first.phone || '',
+    company: first.company || '',
+    hostDept: d.host_company_name || '',
   }
 }
 
-/** 人臉辨識 */
+/** 人臉辨識（模擬） */
 async function verifyFaceImpl() {
   await delay(1500)
   return { ok: true }
@@ -56,44 +110,49 @@ async function scanIdCardImpl() {
   return body.card
 }
 
+/** 證件櫃畫面每列顯示幾格（後端未提供版面資訊） */
+const LOCKER_COLUMNS = 6
+/** 後端證件櫃狀態（dict guest_slot_status）：0 = 空閒、1 = 使用中 */
+const SLOT_STATUS = { 0: 'available', 1: 'occupied' }
+
 /**
- * 取得證件存放格位設定（由後端提供）
+ * 取得證件櫃列表與目前狀態
  * @returns {{ columns: number, slots: Array<{ id, label, status: 'available'|'occupied'|'disabled' }> }}
- *   columns：畫面每列顯示幾格；slots：依顯示順序排列的格位
  */
 async function getLockersImpl() {
-  await delay(400)
-  const columns = 6
-  const rows = 4
-  const occupied = new Set([1, 4, 7, 8, 13, 17, 22])
-  const disabled = new Set([11, 20])
-  const slots = Array.from({ length: columns * rows }, (_, i) => {
-    const label = `${String.fromCharCode(65 + Math.floor(i / columns))}${String((i % columns) + 1).padStart(2, '0')}`
-    return {
-      id: label,
-      label,
-      status: disabled.has(i) ? 'disabled' : occupied.has(i) ? 'occupied' : 'available',
-    }
-  })
-  return { columns, slots }
-}
-
-/** 指派證件存放格位（後端可於此開啟格門；格位已被使用時應回傳錯誤） */
-async function assignLockerImpl(slotId) {
-  await delay(800)
-  return { id: slotId, label: slotId }
+  const data = await factoryRequest('GET', '/guest/slot', { query: { per_page: -1 } })
+  const slots = listOf(data).map((s) => ({
+    id: s.id,
+    label: s.name,
+    status: SLOT_STATUS[s.status] || 'disabled',
+  }))
+  return { columns: LOCKER_COLUMNS, slots }
 }
 
 /**
- * 發行訪客證：送出訪客資料給後端，取回卡號（QR Code 內容）與訪客證號
- * @returns {{ cardNo: string, badgeNo: string }}
+ * 選擇證件櫃：後端沒有預先鎖定的 API，實際占用檢查於報到（issueBadge → guest/done）時進行
+ * @param {{ id, label }} slot
  */
-async function issueBadgeImpl(/* visit */) {
-  await delay(800)
-  return {
-    cardNo: String(Math.floor(100000000 + Math.random() * 900000000)), // 例：123456789
-    badgeNo: `V${String(Date.now()).slice(-6)}`,
+async function assignLockerImpl(slot) {
+  return { id: slot.id, label: slot.label || String(slot.id) }
+}
+
+/**
+ * 完成報到並取得門禁卡號（guest/done）：寫入證件櫃與同意書，回傳門禁卡號（QR Code 內容）
+ * @returns {{ cardNo: string, badgeNo: string, guestCount: number }}
+ * @throws {Error} 證件櫃已被占用、預約狀態不符時 err.code 為 NOT_FOUND
+ */
+async function issueBadgeImpl(visit) {
+  const d = await factoryRequest('POST', '/guest/done', {
+    body: { id: visit.reservation?.id, slot: visit.locker?.id, consent_form: visit.agreed ? 1 : 0 },
+  })
+  let cardNo = d.access_card_no
+  if (!cardNo) {
+    // 後端目前尚未寫入門禁卡號：先以預約單號暫代，避免無法列印
+    logWarning('API', `後端未回傳門禁卡號，暫以預約單號 ${d.reservation_id} 列印`)
+    cardNo = d.reservation_id
   }
+  return { cardNo: String(cardNo), badgeNo: d.reservation_id, guestCount: d.guest_count }
 }
 
 /**
@@ -112,84 +171,108 @@ async function printBadgeImpl(data) {
   return body
 }
 
-/** 通知被拜訪員工 */
+/** 通知被拜訪員工（後端尚無對應 API） */
 async function notifyHostImpl() {
-  await delay(800)
   return { ok: true }
 }
 
 // ── 無預約 ─────────────────────────────────────────
 
-const FLOORS = ['B1', ...Array.from({ length: 15 }, (_, i) => `${i + 1}F`)]
+const DOORPLATE_CACHE_MS = 5 * 60 * 1000
+let doorplateCache = null // { at, promise }
 
-const MOCK_COMPANIES = {
-  '5F': [
-    '新保科技股份有限公司',
-    '宏達國際有限公司',
-    '全球數位科技股份有限公司',
-    '鑫鴻設計顧問有限公司',
-    '博安物業管理有限公司',
-  ],
+/** 門牌列表（樓層、門牌、公司），快取一段時間供選樓層 / 選公司共用 */
+function loadDoorplates() {
+  if (!doorplateCache || Date.now() - doorplateCache.at > DOORPLATE_CACHE_MS) {
+    const promise = factoryRequest('GET', '/data_setting/index', { query: { per_page: -1 } }).then(listOf)
+    doorplateCache = { at: Date.now(), promise }
+    // 失敗時不快取，下次重新取得
+    promise.catch(() => {
+      if (doorplateCache?.promise === promise) doorplateCache = null
+    })
+  }
+  return doorplateCache.promise
 }
 
-/** 取得可拜訪的樓層 */
+const floorLabel = (floor) => (floor < 0 ? `B${-floor}` : `${floor}F`)
+
+/** 取得可拜訪的樓層（依門牌資料） */
 async function getFloorsImpl() {
-  await delay(200)
-  return FLOORS.map((f) => ({ id: f, label: f }))
-}
-
-/** 取得樓層內的公司 */
-async function getCompaniesImpl(floorId) {
-  await delay(300)
-  const names = MOCK_COMPANIES[floorId] || [
-    `範例企業 ${floorId} 股份有限公司`,
-    `示範科技 ${floorId} 有限公司`,
-    `測試顧問 ${floorId} 有限公司`,
-  ]
-  return names.map((name, i) => ({ id: `${floorId}-${i + 1}`, name }))
+  const doorplates = await loadDoorplates()
+  const floors = [...new Set(doorplates.map((d) => Number(d.floor)).filter(Number.isFinite))].sort((a, b) => a - b)
+  return floors.map((f) => ({ id: f, label: floorLabel(f) }))
 }
 
 /**
- * 無預約訪客送出登記（後端應寄送通知 Email 給受訪公司，待其同意）
- * @param {{ floor, company, visitor: { name, phone, email, company, purpose } }} data
+ * 取得樓層內的公司
+ * @returns {Array<{ id: number, name: string, doorplate, household }>} id 為門牌 ID（無預約登記時送出）
  */
-async function registerWalkInImpl(data) {
-  await delay(1000)
-  return { id: `W${Date.now()}`, status: 'pending', ...data }
+async function getCompaniesImpl(floorId) {
+  const doorplates = await loadDoorplates()
+  return doorplates
+    .filter((d) => Number(d.floor) === Number(floorId) && d.company_name)
+    .map((d) => ({ id: d.id, name: d.company_name, doorplate: d.doorplate, household: d.household }))
+}
+
+/**
+ * 取得拜訪事由
+ * 後端尚未提供拜訪事由 API，先使用暫代清單（id 為送給後端的 visit_reason，key 對應 i18n walkIn.purposes.*）
+ * 待後端提供後改為呼叫 API，回傳 { id, label } 即可（畫面優先顯示 label）
+ * @returns {Array<{ id: number, key?: string, label?: string }>}
+ */
+async function getVisitReasonsImpl() {
+  return [
+    { id: 1, key: 'business' },
+    { id: 2, key: 'meeting' },
+    { id: 3, key: 'interview' },
+    { id: 4, key: 'delivery' },
+    { id: 5, key: 'maintenance' },
+    { id: 6, key: 'other' },
+  ]
+}
+
+/**
+ * 無預約訪客送出登記（guest/create，建立一筆現場預約）
+ * @param {{ company: { id }, visitor: { name, phone, email, company, purpose } }} data
+ *   company.id 為門牌 ID；visitor.purpose 為拜訪事由 ID
+ */
+async function registerWalkInImpl({ company, visitor }) {
+  await factoryRequest('POST', '/guest/create', {
+    body: {
+      doorplate_id: company.id,
+      visit_reason: Number(visitor.purpose),
+      visitor: [
+        {
+          name: visitor.name,
+          company_name: visitor.company,
+          phone: visitor.phone,
+          email: visitor.email,
+        },
+      ],
+    },
+  })
+  // 後端不回傳資料（單號、速通碼由系統產生並通知）
+  return { id: null, status: 'pending' }
 }
 
 // ── 離場 ───────────────────────────────────────────
 
 /**
- * 訪客離場：送出掃描到的門禁卡號（訪客證）或速通碼（預約 QR Code），由後端判斷類型並完成離場
- * 後端應記錄離場時間（check_out_at）、將預約單狀態改為已離場，並回傳證件存放格位以提醒訪客取回證件
- *
- * 模擬規則：
- *   - 結尾為 0000 → 查無訪客紀錄（NOT_FOUND）
- *   - 結尾為 1111 → 已完成離場（ALREADY_CHECKED_OUT）
- *   - 結尾為 2222 → 尚未報到（NOT_CHECKED_IN）
- *   - 其他 → 離場成功
- *
- * @param {{ code: string }} data
- * @returns {{ visitorName: string, company: string, checkOutAt: string, locker: { id, label } | null }}
- * @throws {Error} err.code 為 NOT_FOUND | ALREADY_CHECKED_OUT | NOT_CHECKED_IN
+ * 訪客離場（guest/leave）：以門禁卡號比對已報到的預約單，清除門禁卡號、速通碼與證件櫃
+ * 後端不回傳資料，訪客姓名與證件櫃無法顯示
+ * @param {{ code: string }} data  掃描到的門禁卡號
+ * @returns {{ visitorName: null, company: null, checkOutAt: string, locker: null }}
+ * @throws {Error} 查無已報到的預約單時 err.code 為 NOT_FOUND
  */
 async function checkOutImpl({ code }) {
-  await delay(1200)
-  const fail = (errCode, msg) => {
-    const err = new Error(msg)
-    err.code = errCode
+  // 後端 card_no 為整數：非數字內容（例如其他 QR Code）不可能是門禁卡號
+  if (!/^\d{1,18}$/.test(String(code || '').trim())) {
+    const err = new Error('Not an access card number')
+    err.code = 'NOT_FOUND'
     throw err
   }
-  if (!code || code.endsWith('0000')) fail('NOT_FOUND', 'Visitor record not found')
-  if (code.endsWith('1111')) fail('ALREADY_CHECKED_OUT', 'Visitor already checked out')
-  if (code.endsWith('2222')) fail('NOT_CHECKED_IN', 'Visitor has not checked in')
-  return {
-    visitorName: '王小明',
-    company: '範例股份有限公司',
-    checkOutAt: new Date().toISOString(),
-    locker: { id: 'A03', label: 'A03' },
-  }
+  await factoryRequest('POST', '/guest/leave', { body: { card_no: Number(code) } })
+  return { visitorName: null, company: null, checkOutAt: new Date().toISOString(), locker: null }
 }
 
 // ── 對外提供（含 debug 記錄） ─────────────────────────
@@ -204,5 +287,6 @@ export const printBadge = withDebugLog('printBadge', printBadgeImpl)
 export const notifyHost = withDebugLog('notifyHost', notifyHostImpl)
 export const getFloors = withDebugLog('getFloors', getFloorsImpl)
 export const getCompanies = withDebugLog('getCompanies', getCompaniesImpl)
+export const getVisitReasons = withDebugLog('getVisitReasons', getVisitReasonsImpl)
 export const registerWalkIn = withDebugLog('registerWalkIn', registerWalkInImpl)
 export const checkOut = withDebugLog('checkOut', checkOutImpl)

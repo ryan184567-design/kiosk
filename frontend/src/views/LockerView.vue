@@ -48,7 +48,7 @@ const confirm = async () => {
   if (!selectedSlot.value) return
   assigning.value = true
   try {
-    const locker = await assignLocker(selectedSlot.value.id)
+    const locker = await assignLocker(selectedSlot.value)
     visit.locker = { id: locker.id, label: locker.label || locker.id }
     debug('Flow', `⑤-1 訪客將證件存放於 ${visit.locker.label}`, visit.locker)
     timer = setTimeout(() => router.push('/agreement'), NEXT_DELAY_MS)

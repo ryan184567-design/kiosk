@@ -10,12 +10,12 @@ const initialState = () => ({
   passCode: '', // 速通碼（即 QR Code 內容號碼）
   passCodeSource: null, // 速通碼來源 'scan' 掃描 QR Code | 'keypad' 數字鍵盤輸入
   reservation: null, // 驗證後取得的預約資料
-  visitor: null, // 訪客資料 { name, phone, company, hostName, hostDept, purpose }
+  visitor: null, // 訪客資料 { name, phone, company, hostName, hostDept（受訪公司）, guestCount }
   identity: {
     face: false, // 人臉辨識是否通過
     idCard: null, // 證件資料 { name, idNumber, manual }
   },
-  locker: null, // 證件存放格位 { id, label }（有證件資料時才需要）
+  locker: null, // 證件存放格位 { id, label }（id 為後端證件櫃 ID，label 為證件櫃名稱）
   agreed: false, // 是否同意條款
   badge: null, // 列印完成的訪客證 { badgeNo }
 
@@ -23,7 +23,7 @@ const initialState = () => ({
   walkIn: {
     floor: null, // 選擇的樓層 { id, label }
     company: null, // 選擇的受訪公司 { id, name }
-    form: null, // 填寫的訪客資料 { name, phone, email, company, purpose }
+    form: null, // 填寫的訪客資料 { name, phone, email, company, purpose（拜訪事由 ID）, purposeKey, purposeLabel }
   },
   registration: null, // 送出登記後的結果 { id }
 
@@ -96,12 +96,15 @@ export function isIdentityComplete() {
   return visit.identity.face || !!visit.identity.idCard
 }
 
-/** 是否需要選擇證件存放格位（有掃描或手動輸入證件時） */
+/**
+ * 是否需要選擇證件存放格位：身份驗證完成後一律需要
+ * （後端報到 API guest/done 必須帶證件櫃，人臉辨識通過的訪客也要選擇）
+ */
 export function needsLocker() {
-  return !!visit.identity.idCard
+  return isIdentityComplete()
 }
 
-/** 身份驗證與證件存放（若需要）皆已完成 */
+/** 身份驗證與證件存放皆已完成 */
 export function isLockerComplete() {
-  return isIdentityComplete() && (!needsLocker() || !!visit.locker)
+  return isIdentityComplete() && !!visit.locker
 }

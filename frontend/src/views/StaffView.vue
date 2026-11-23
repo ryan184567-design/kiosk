@@ -216,7 +216,7 @@ onBeforeUnmount(() => offs.forEach((off) => off()))
               <a-descriptions-item label="電子郵件">{{ visit.walkIn?.form?.email || '—' }}</a-descriptions-item>
               <a-descriptions-item label="訪客公司">{{ visit.walkIn?.form?.company || '—' }}</a-descriptions-item>
               <a-descriptions-item label="拜訪事由">
-                {{ PURPOSES[visit.walkIn?.form?.purpose] || '—' }}
+                {{ PURPOSES[visit.walkIn?.form?.purposeKey] || visit.walkIn?.form?.purposeLabel || '—' }}
               </a-descriptions-item>
               <a-descriptions-item label="登記編號">{{ visit.registration?.id || '—' }}</a-descriptions-item>
             </template>

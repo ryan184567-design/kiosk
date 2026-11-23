@@ -129,6 +129,9 @@ export default {
     badge: '来訪者証',
     failTitle: '印刷に失敗しました',
     failHint: '受付にお問い合わせください',
+    checkInFailTitle: 'チェックインに失敗しました',
+    slotRejectedHint: 'ロッカーが使用中か、予約の状態が変更されました。ロッカーを選び直してください',
+    reselectLocker: 'ロッカーを選び直す',
   },
   notified: {
     title: '担当者に通知しました',

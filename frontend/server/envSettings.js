@@ -261,6 +261,48 @@ export const SCHEMA = [
     ],
   },
   {
+    id: 'factory',
+    title: '後端 API',
+    fields: [
+      {
+        key: 'FACTORY_API_BASE',
+        label: '後端網址',
+        type: 'text',
+        default: '',
+        apply: 'live',
+        pattern: '^(https?://\\S+)?$',
+        placeholder: 'http://kiosk.test:8080',
+        help: '訪客機 API（/api/factory/*）所在的後端網址',
+      },
+      {
+        key: 'FACTORY_APP_ID',
+        label: 'App ID',
+        type: 'text',
+        default: '',
+        apply: 'live',
+        pattern: '^[0-9A-Za-z_-]*$',
+        help: '後台建立 App 時取得的 app_id',
+      },
+      {
+        key: 'FACTORY_APP_SECRET',
+        label: 'App Secret',
+        type: 'password',
+        default: '',
+        apply: 'live',
+        help: '只在本機用來簽名換取 token，不會送到網路或瀏覽器',
+      },
+      {
+        key: 'FACTORY_TIMEOUT',
+        label: '請求逾時（秒）',
+        type: 'number',
+        min: 1,
+        max: 120,
+        default: 10,
+        apply: 'live',
+      },
+    ],
+  },
+  {
     id: 'log',
     title: '記錄檔',
     fields: [
