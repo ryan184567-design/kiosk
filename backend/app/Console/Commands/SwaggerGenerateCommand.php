@@ -12,6 +12,7 @@ namespace App\Console\Commands;
 use App\Hq\Site\Models\Site;
 use App\Support\Api\Doc\ApiAnnotationParser;
 use App\Support\Api\Doc\ApiAnnotationValidator;
+use App\Support\Api\Doc\ApiExampleFactory;
 use App\Support\Hq\HqPresence;
 use App\Support\Site\SiteDatabaseConfig;
 use Illuminate\Console\Command;
@@ -35,8 +36,12 @@ class SwaggerGenerateCommand extends Command
 
     protected $description = '產生 OpenAPI JSON（見 README 12.7）';
 
+    private ApiExampleFactory $examples;
+
     public function handle(): int
     {
+        $this->examples = new ApiExampleFactory;
+
         if (! $this->bindSiteConnection()) {
             return self::FAILURE;
         }
@@ -87,9 +92,9 @@ class SwaggerGenerateCommand extends Command
             }
         }
 
-        $this->write(storage_path('app/private/docs/openapi.json'), $internalPaths);
-        $this->write(storage_path('app/private/docs/openapi.partner.json'), $partnerPaths);
-        $this->write(storage_path('app/private/docs/openapi.hq.json'), $hqPaths);
+        $this->write(storage_path('app/private/docs/openapi.json'), $internalPaths, 'userBearerAuth');
+        $this->write(storage_path('app/private/docs/openapi.partner.json'), $partnerPaths, 'appBearerAuth');
+        $this->write(storage_path('app/private/docs/openapi.hq.json'), $hqPaths, 'userBearerAuth');
         $this->publishSwaggerUiAssets();
 
         $this->info('已產生 storage/app/private/docs/openapi.json、openapi.partner.json、openapi.hq.json，可透過 /docs/openapi.json、/docs/openapi.partner.json、/docs/openapi.hq.json 存取（見 ApiDocsController）。');
@@ -213,6 +218,10 @@ class SwaggerGenerateCommand extends Command
 
         // 機器（訪客機）呼叫的接口：標 @api-auth app／public，見 DEVELOP.MD 12.9。
         // app 代表需 Bearer access token（factory.auth）加 @api-scope（factory.scope）。
+        if (($parsed['auth'] ?? null) === 'public') {
+            $operation['security'] = [];
+        }
+
         if (($parsed['auth'] ?? null) === 'app') {
             $operation['security'] = [['appBearerAuth' => []]];
             $operation['x-scope'] = $parsed['scope'];
@@ -235,13 +244,13 @@ class SwaggerGenerateCommand extends Command
                 'name' => $name,
                 'in' => 'path',
                 'required' => true,
-                'schema' => ['type' => 'integer'],
+                'schema' => ['type' => 'integer', 'example' => 1],
                 'description' => "路徑參數 {$name}",
             ];
         }
 
         foreach ($parser->queryFields($parsed) as $field) {
-            $schema = $this->leafSchema($field['type'], $field['description'], $dicts);
+            $schema = $this->leafSchema($field['type'], $field['description'], $dicts, $field['path']);
             $description = $schema['description'] ?? $field['description'];
             unset($schema['description']);
 
@@ -265,13 +274,18 @@ class SwaggerGenerateCommand extends Command
             $hasFileField = collect($requestFields)->contains(fn ($field) => $field['type'] === 'file');
             $contentType = $hasFileField ? 'multipart/form-data' : 'application/json';
 
-            $operation['requestBody'] = [
-                'content' => [
-                    $contentType => [
-                        'schema' => $this->buildSchema($requestFields, $dicts),
-                    ],
-                ],
-            ];
+            $media = ['schema' => $this->buildSchema($requestFields, $dicts)];
+
+            // @api-request-example 必須輸出成 OpenAPI 的 example，否則 Swagger UI 的
+            // 「Try it out」預設值會是每個欄位都填 "string"，看不出該填什麼。
+            // multipart 上傳的說明文字不是 JSON，不輸出（驗證器只對非 multipart 要求 JSON 格式）。
+            $example = json_decode((string) ($parsed['request-example'] ?? ''), true);
+            if (! $hasFileField) {
+                // 標註有明確範例以標註為準，沒有才依欄位自動產生
+                $media['example'] = is_array($example) ? $example : $this->examples->tree($requestFields, $dicts);
+            }
+
+            $operation['requestBody'] = ['content' => [$contentType => $media]];
         }
 
         $responseFields = $parser->responseFields($parsed);
@@ -280,7 +294,11 @@ class SwaggerGenerateCommand extends Command
             '200' => [
                 'description' => 'OK',
                 'content' => $responseFields ? [
-                    'application/json' => ['schema' => $this->buildSchema($responseFields, $dicts)],
+                    'application/json' => [
+                        'schema' => $this->buildSchema($responseFields, $dicts),
+                        // 回傳範例含統一外層（status／error_code），內容依欄位名稱自動產生
+                        'example' => ['status' => true, 'error_code' => 0] + $this->examples->tree($responseFields, $dicts),
+                    ],
                 ] : [],
             ],
         ];
@@ -305,13 +323,13 @@ class SwaggerGenerateCommand extends Command
         $properties = [];
 
         foreach ($fields as $field) {
-            $this->setNested($properties, explode('.', $field['path']), $field['type'], $field['description'], $dicts);
+            $this->setNested($properties, explode('.', $field['path']), $field['type'], $field['description'], $dicts, $field['path']);
         }
 
         return ['type' => 'object', 'properties' => $properties];
     }
 
-    private function setNested(array &$node, array $segments, string $type, string $description, array $dicts): void
+    private function setNested(array &$node, array $segments, string $type, string $description, array $dicts, string $fullPath = ''): void
     {
         $segment = array_shift($segments);
         $isArray = str_ends_with($segment, '[]');
@@ -319,8 +337,8 @@ class SwaggerGenerateCommand extends Command
 
         if (empty($segments)) {
             $node[$key] = $isArray
-                ? ['type' => 'array', 'items' => $this->leafSchema($type, $description, $dicts)]
-                : $this->leafSchema($type, $description, $dicts);
+                ? ['type' => 'array', 'items' => $this->leafSchema($type, $description, $dicts, $fullPath)]
+                : $this->leafSchema($type, $description, $dicts, $fullPath);
 
             return;
         }
@@ -333,19 +351,19 @@ class SwaggerGenerateCommand extends Command
             $node[$key]['items'] ??= ['type' => 'object'];
             $node[$key]['items']['type'] = 'object';
             $node[$key]['items']['properties'] ??= [];
-            $this->setNested($node[$key]['items']['properties'], $segments, $type, $description, $dicts);
+            $this->setNested($node[$key]['items']['properties'], $segments, $type, $description, $dicts, $fullPath);
         } else {
             $node[$key] ??= ['type' => 'object'];
             $node[$key]['type'] = 'object';
             $node[$key]['properties'] ??= [];
-            $this->setNested($node[$key]['properties'], $segments, $type, $description, $dicts);
+            $this->setNested($node[$key]['properties'], $segments, $type, $description, $dicts, $fullPath);
         }
     }
 
     // 字典欄位（type 為 dict:{name}）直接把選項清單展開寫進 description，
     // Swagger UI 的 Schema 分頁不需要額外外掛就能看到「字典是什麼意思」，
     // 不是只寫「這是個字典」四個字交差，見 12.5 第 2 點。
-    private function leafSchema(string $type, string $description, array $dicts): array
+    private function leafSchema(string $type, string $description, array $dicts, string $path = ''): array
     {
         if (str_starts_with($type, 'dict:')) {
             $dictName = substr($type, 5);
@@ -354,17 +372,35 @@ class SwaggerGenerateCommand extends Command
                 ->map(fn ($label, $value) => "{$value}={$label}")
                 ->implode('、');
 
-            return [
-                'type' => 'string',
+            // 選項值全是數字（如狀態碼）就標成 integer，與實際入參／回傳一致
+            $numeric = $options && collect(array_keys($options))->every(fn ($k) => is_numeric($k));
+
+            $schema = [
+                'type' => $numeric ? 'integer' : 'string',
                 'description' => trim("{$description}（字典：{$dictName}，可選值：{$optionsText}）"),
             ];
+
+            // 預設值取字典的第一個選項，不要讓 Swagger UI 顯示 "string"
+            if ($options) {
+                $schema['example'] = $numeric ? (int) array_key_first($options) : (string) array_key_first($options);
+            }
+
+            return $schema;
         }
 
         if ($type === 'file') {
             return ['type' => 'string', 'format' => 'binary', 'description' => $description];
         }
 
-        return ['type' => $this->mapType($type), 'description' => $description];
+        $schema = ['type' => $this->mapType($type), 'description' => $description];
+
+        // 依欄位名稱、型別與說明給「有意義的值」，避免 Swagger UI 預設顯示 "string"／0
+        $example = $this->examples->value($path, $type, $description, $dicts);
+        if (! ($example instanceof \stdClass) && $example !== []) {
+            $schema['example'] = $example;
+        }
+
+        return $schema;
     }
 
     private function mapType(string $type): string
@@ -393,14 +429,25 @@ class SwaggerGenerateCommand extends Command
     // 不會有這個問題，但本機開發天天要用，改存在 storage/app/private，
     // 一律透過 ApiDocsController 讀檔回傳，/docs 整棵路徑都交給 Laravel
     // 路由處理，不會有任何路徑跟 public/ 底下的實體檔案／目錄相撞。
-    private function write(string $path, array $paths): void
+    private function write(string $path, array $paths, string $authScheme): void
     {
         $doc = [
             'openapi' => '3.0.3',
             'info' => ['title' => config('app.name'), 'version' => '1.0.0'],
             'paths' => $paths,
             // App（機器）認證（factory.auth）用的 Bearer token，取得方式見 POST /api/factory/token
-            'components' => ['securitySchemes' => ['appBearerAuth' => ['type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT']]],
+            // 每份文件只宣告自己用得到的認證方式，否則 Swagger UI 的 Authorize 視窗會出現不相干的欄位：
+            // - /docs、/docs/hq（用戶接口）：userBearerAuth，填登入（POST /api/auth/login、/api/hq/auth/login）
+            //   回傳的 data.access_token；沒宣告它就沒有 Authorize 按鈕，Try it out 不帶 Authorization header，
+            //   需登入的接口一律回 20001「缺少憑證」。
+            // - /docs/partner（機器接口）：appBearerAuth，token 取得方式見 POST /api/factory/token。
+            // 設成全域預設；標 @api-auth public 的接口在 operation 層覆寫為不需認證。
+            'components' => ['securitySchemes' => [
+                $authScheme => $authScheme === 'userBearerAuth'
+                    ? ['type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT', 'description' => '填登入回傳的 data.access_token（不用加 Bearer 前綴）']
+                    : ['type' => 'http', 'scheme' => 'bearer', 'bearerFormat' => 'JWT', 'description' => '填 POST /api/factory/token 回傳的 data.access_token（不用加 Bearer 前綴）'],
+            ]],
+            'security' => [[$authScheme => []]],
         ];
 
         $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | ($this->option('pretty') ? JSON_PRETTY_PRINT : 0);

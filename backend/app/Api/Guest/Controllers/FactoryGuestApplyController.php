@@ -155,7 +155,7 @@ class FactoryGuestApplyController extends BaseApiController
      * @api-request-field id int 預約單ID
      * @api-request-field slot int 證件櫃ID
      * @api-request-field consent_form int 訪客同意書
-     * @api-request-example {"id": 1, "slot": 2, "consent_form", 1}
+     * @api-request-example {"id": 1, "slot": 2, "consent_form": 1}
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
      * @api-response-field data.guest_count int 訪客人數

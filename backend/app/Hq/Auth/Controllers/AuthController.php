@@ -38,7 +38,7 @@ class AuthController extends BaseHqController
      * @api-request-field username string 登入帳號
      * @api-request-field password string 登入密碼
      * @api-request-example
-     * {"username": "hq_admin", "password": "your-password"}
+     * {"username": "admin", "password": "Admin@123456"}
      * @api-response-field data.access_token string 主站 JWT，之後呼叫其他
      * 主站 API 要帶在 `Authorization: Bearer {token}`
      * @api-response-field data.expires_at int Token 過期時間（unix timestamp）

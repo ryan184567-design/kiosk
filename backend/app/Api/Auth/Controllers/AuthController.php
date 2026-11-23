@@ -37,12 +37,18 @@ class AuthController extends BaseApiController
      * 這個帳號在「這個端口」原本持有的其他有效 JWT 會全部立即失效
      * （單帳號單 Token，範疇是同一帳號 + 同一端口的組合，不影響這個帳號
      * 在其他端口的登入狀態）。
+     *
+     * `portal_key` 怎麼填：必填，填「端口代碼」字串，需與後台「端口管理」裡已啟用的端口的 `portal_key` 完全一致（區分大小寫）。
+     * 目前系統預設只有一個端口：`admin`（管理後台），登入後台就填 `admin`。
+     * 之後若在「端口管理」新增其他端口（如 vendor），才會多出可填的值；
+     * 填了不存在、已停用或該帳號沒被開通的端口，一律登入失敗，不會自動改用其他端口。
      * @api-portal *
-     * @api-request-field username string 登入帳號
-     * @api-request-field password string 密碼
-     * @api-request-field portal_key string 要進入的端口，例如 admin
+     * @api-dict portal_key admin=管理後台（預設唯一端口，登入後台請填此值）
+     * @api-request-field username string 登入帳號，必填。預設帳號見 README 第 7 節（子站超級管理員 admin、系統管理員為站代碼）
+     * @api-request-field password string 密碼，必填
+     * @api-request-field portal_key dict:portal_key 要進入的端口代碼，必填，目前可選值只有 admin
      * @api-request-example
-     * {"username": "super_admin", "password": "your-password", "portal_key": "admin"}
+     * {"username": "admin", "password": "!@#123456", "portal_key": "admin"}
      * @api-response-field data.access_token string JWT
      * @api-response-field data.expires_at int 過期時間（unix timestamp）
      */

@@ -118,6 +118,12 @@ class ApiAnnotationValidator
         if ($fields !== [] && empty($parsed['request-example'])) {
             throw new RuntimeException("[{$context}] 有 @api-request-field 卻沒有 @api-request-example，body 入參必須附可直接調用的範例（見 12.5 第 1 點）。");
         }
+
+        // 範例會直接輸出給 Swagger UI 當預設值，必須是合法 JSON；multipart 上傳（有 file 欄位）例外。
+        $hasFile = collect($fields)->contains(fn ($f) => $f['type'] === 'file');
+        if ($fields !== [] && ! $hasFile && ! is_array(json_decode($parsed['request-example'], true))) {
+            throw new RuntimeException("[{$context}] @api-request-example 不是合法的 JSON 物件，Swagger UI 無法當作預設值。");
+        }
     }
 
     private function validateResponseFields(array $parsed, string $context): void

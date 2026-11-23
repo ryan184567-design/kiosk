@@ -42,7 +42,7 @@ class FactoryAuthController extends BaseApiController
      * @api-request-field timestamp int Unix 秒級時間戳
      * @api-request-field nonce string 客戶端產生的隨機英數字串，16～64 字元
      * @api-request-field sign string 小寫 hex 的 HMAC-SHA256 簽名，64 字元
-     * @api-request-example {"app_id":"app_k3x9m2p0q7w1z5ab","timestamp":1790000000,"nonce":"a1b2c3d4e5f60718","sign":"3f1c...（64 字元 hex）"}
+     * @api-request-example {"app_id":"app_k3x9m2p0q7w1z5ab","timestamp":1790000000,"nonce":"a1b2c3d4e5f60718","sign":"3f1c9a7e5b2d48c6a0f1e3d4b5c6a7988d9e0f1a2b3c4d5e6f708192a3b4c5d6"}
      * @api-response-field data.access_token string JWT access token，後續請求放 `Authorization: Bearer`
      * @api-response-field data.token_type string 固定為 Bearer
      * @api-response-field data.expires_in int 有效秒數，快到期或收到 401 時重新換取即可（無 refresh token）
