@@ -89,9 +89,9 @@ class DataSettingController extends BaseApiController
     public function addDoorplate(Request $request, DataSettingService $dataSetting)
     {
         $data = $this->validateInput($request, [
-            'doorplate' => 'required|int|max:3',
-	        'floor'	=> 'required|int|max:2',
-	        'household' => 'required|int|max:2',
+            'doorplate' => 'required|int|max:1000',
+	        'floor'	=> 'required|int|max:100',
+	        'household' => 'required|int|max:10',
             'company_name'=> 'string|max:255'
         ]);
 
@@ -132,11 +132,11 @@ class DataSettingController extends BaseApiController
     {
         $data = $this->validateInput($request, [
             'id' => 'required|int',
-            'doorplate' => 'required|int|max:3',
-	        'floor'	=> 'required|int|max:2',
-	        'household' => 'required|int|max:2',
+            'doorplate' => 'required|int|max:1000',
+	        'floor'	=> 'required|int|max:100',
+	        'household' => 'required|int|max:10',
             'company_name'=> 'required|string|max:255',
-            'status' => 'required|int|max:1',
+            'status' => 'required|int|max:10',
         ]);
 
         $doorplate = $dataSetting->updateDoorplate(
@@ -198,7 +198,7 @@ class DataSettingController extends BaseApiController
     public function floor(Request $request, DataSettingService $dataSetting)
     {
         $data = $this->validateInput($request, [
-            'bid' => 'nullable|int|max:2',
+            'bid' => 'nullable|int|max:10',
         ]);
 
         $result = $dataSetting->floor($data['bid'] ?? null);
@@ -272,8 +272,8 @@ class DataSettingController extends BaseApiController
     {
         $data = $this->validateInput($request, [
             'name' => 'required|string|max:100',
-            'on_floor' => 'required|int|max:2',
-            'under_floor' => 'int|max:2',
+            'on_floor' => 'required|int|max:100',
+            'under_floor' => 'int|max:10',
         ]);
 
         $building = $dataSetting->addBuilding(

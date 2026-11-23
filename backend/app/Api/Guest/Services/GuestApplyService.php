@@ -59,7 +59,7 @@ class GuestApplyService
         return $query;
     }
 
-    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, int $reservation_type, int $reservation_status): GuestApply
+    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, int $reservation_type, int $reservation_status): GuestApply
     {
         $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count, $visitors);
@@ -71,7 +71,7 @@ class GuestApplyService
             'visit_end_time' => $end_time,
             'guest_count' => $visitor_count,
             'host_name' => $host_name,
-            'visit_reason' => $purpose ?? null,
+            'visit_reason' => $purpose,
             'remark' => $notes ?? null,
             'is_email_notify' => (bool) ($email_notify ?? false),
             'is_sms_notify' => (bool) ($sms_notify ?? false),
@@ -120,7 +120,7 @@ class GuestApplyService
     /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼。
      */
-    public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, string $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
+    public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
     {
         $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count , $visitors);
@@ -138,7 +138,7 @@ class GuestApplyService
             'visit_end_time' => $end_time,
             'guest_count' => $visitor_count,
             'host_name' => $host_name,
-            'visit_reason' => $purpose ?? null,
+            'visit_reason' => $purpose,
             'remark' => $notes ?? null,
             'is_email_notify' => (bool) ($email_notify ?? false),
             'is_sms_notify' => (bool) ($sms_notify ?? false),

@@ -45,7 +45,7 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.items[].visit_start_time string 預約時段起 HH:mm
      * @api-response-field data.items[].visit_end_time string 預約時段迄 HH:mm
      * @api-response-field data.items[].guest_count int 訪客人數
-     * @api-response-field data.items[].visit_reason string 來訪事由，未填為 null
+     * @api-response-field data.items[].visit_reason int 來訪事由，必填
      * @api-response-field data.items[].check_in_at datetime 到場時間，尚未報到為 null
      * @api-response-field data.items[].check_out_at datetime 離場時間，尚未報到為 null
      * @api-response-field data.items[].visitor array 來訪者明細
@@ -63,9 +63,9 @@ class GuestApplyController extends BaseApiController
             'keyword' => 'nullable|string|max:100',
             'date_from' => 'nullable|date_format:Y-m-d',
             'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
-            'reservation_status' => 'nullable|integer|in:0,1,10,11,20,30,40,50,60',
-            'page' => 'nullable|integer|min:1',
-            'per_page' => 'nullable|integer|min:-1|max:200',
+            'reservation_status' => 'nullable|int|in:0,1,10,11,20,30,40,50,60',
+            'page' => 'nullable|int|min:1',
+            'per_page' => 'nullable|int|min:-1|max:200',
         ]);
 
         $perPage = (int) ($data['per_page'] ?? 10);
@@ -115,7 +115,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field visit_end_time string 預約時段(結束) HH:mm，必填，例如 11:00
      * @api-request-field guest_count int 來訪人數，必填，1～10
      * @api-request-field host_name string 受訪人，必填，最長 100 字
-     * @api-request-field visit_reason string 預約事由，選填，最長 255 字
+     * @api-request-field visit_reason int 預約事由，必填
      * @api-request-field remark string 備註，選填，最長 200 字
      * @api-request-field is_email_notify bool 是否 Email 通知受訪人，選填，預設 false
      * @api-request-field is_sms_notify bool 是否簡訊通知來訪者，選填，預設 false
@@ -128,7 +128,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field visitor[].phone string 手機號碼，必填，數字、加號與連字號，8～30 字元
      * @api-request-field visitor[].email string Email，選填，需為合法格式，最長 150 字
      * @api-request-field visitor[].plate_number string 車牌號碼，選填，最長 20 字
-     * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason":"業務洽談","remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
+     * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason": 1,"remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
      * @api-response-field data.qr_code string QR code 驗證碼（修改不會重新產生）
@@ -148,7 +148,7 @@ class GuestApplyController extends BaseApiController
             $data['visit_end_time'],
             $data['guest_count'],
             $data['host_name'],
-            $data['visit_reason'] ?? null,
+            $data['visit_reason'],
             $data['remark'] ?? null,
             $data['is_email_notify'] ?? null,
             $data['is_sms_notify'] ?? null,
@@ -185,7 +185,7 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.visit_start_time string 預約時段起 HH:mm
      * @api-response-field data.visit_end_time string 預約時段迄 HH:mm
      * @api-response-field data.guest_count int 訪客人數
-     * @api-response-field data.visit_reason string 來訪事由，未填為 null
+     * @api-response-field data.visit_reason int 來訪事由，必填
      * @api-response-field data.remark string 備註，未填為 null
      * @api-response-field data.is_email_notify bool 是否 Email 通知受訪人
      * @api-response-field data.is_sms_notify bool 是否簡訊通知來訪者
@@ -240,7 +240,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field visit_end_time string 預約時段(結束) HH:mm，必填，例如 11:00
      * @api-request-field guest_count int 來訪人數，必填，1～10
      * @api-request-field host_name string 受訪人，必填，最長 100 字
-     * @api-request-field visit_reason string 預約事由，選填，最長 255 字
+     * @api-request-field visit_reason int 預約事由，必填
      * @api-request-field remark string 備註，選填，最長 200 字
      * @api-request-field is_email_notify bool 是否 Email 通知受訪人，選填，預設 false
      * @api-request-field is_sms_notify bool 是否簡訊通知來訪者，選填，預設 false
@@ -253,7 +253,7 @@ class GuestApplyController extends BaseApiController
      * @api-request-field visitor[].phone string 手機號碼，必填，數字、加號與連字號，8～30 字元
      * @api-request-field visitor[].email string Email，選填，需為合法格式，最長 150 字
      * @api-request-field visitor[].plate_number string 車牌號碼，選填，最長 20 字
-     * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason":"業務洽談","remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
+     * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason": 1,"remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
      * @api-response-field data.qr_code string QR code 驗證碼（修改不會重新產生）
@@ -271,7 +271,7 @@ class GuestApplyController extends BaseApiController
             $data['visit_end_time'],
             $data['guest_count'],
             $data['host_name'],
-            $data['visit_reason'] ?? null,
+            $data['visit_reason'],
             $data['remark'] ?? null,
             $data['is_email_notify'] ?? null,
             $data['is_sms_notify'] ?? null,
@@ -318,7 +318,7 @@ class GuestApplyController extends BaseApiController
     public function statusChange(int $id, Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'reservation_status' => 'integer|in:1,20,30,40,50,60,70',
+            'reservation_status' => 'int|in:1,20,30,40,50,60,70',
         ]);
 
         $service->status($id, $data['reservation_status']);
@@ -347,18 +347,18 @@ class GuestApplyController extends BaseApiController
     private function rules(): array
     {
         return [
-            'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
+            'doorplate_id' => ['required', 'int', 'exists:site_current.doorplates,id'],
             'visit_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'visit_start_time' => ['required', 'date_format:H:i'],
             'visit_end_time' => ['required', 'date_format:H:i', 'after:visit_start_time'],
-            'guest_count' => ['required', 'integer', 'min:1', 'max:50'],
+            'guest_count' => ['required', 'int', 'min:1', 'max:50'],
             'host_name' => ['required', 'string', 'max:100'],
-            'visit_reason' => ['nullable', 'string', 'max:255'],
+            'visit_reason' => ['required', 'int', 'max:50'],
             'remark' => ['nullable', 'string', 'max:200'],
             'is_email_notify' => ['nullable', 'boolean'],
             'is_sms_notify' => ['nullable', 'boolean'],
             'is_auto_remind' => ['nullable', 'boolean'],
-            'remind_time' => ['required_if:is_auto_remind,true,1', 'nullable', 'integer', 'min:1', 'max:10080'],
+            'remind_time' => ['required_if:is_auto_remind,true,1', 'nullable', 'int', 'min:1', 'max:10080'],
             'visitor' => ['required', 'array', 'min:1', 'max:50'],
             'visitor.*.name' => ['required', 'string', 'max:100'],
             'visitor.*.company_name' => ['required', 'string', 'max:150'],

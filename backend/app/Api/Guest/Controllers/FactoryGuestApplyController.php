@@ -83,20 +83,20 @@ class FactoryGuestApplyController extends BaseApiController
      * - `visit_date`、`visit_start_time`、`visit_end_time`、`guest_count`、`host_name`、`remark`
      * - `is_email_notify`、`is_sms_notify`、`is_auto_remind`、`remind_time`皆為系統寫入
      * @api-request-field doorplate_id int 受訪公司（門牌）ID
-     * @api-request-field visit_reason string 拜訪事由，必填
+     * @api-request-field visit_reason int 拜訪事由，必填
      * @api-request-field visitor array 來訪者名單
      * @api-request-field visitor[].name string 來訪者姓名，必填，最長 100 字
      * @api-request-field visitor[].company_name string 公司名稱，必填，最長 150 字
      * @api-request-field visitor[].phone string 手機號碼，必填，數字、加號與連字號，8～30 字元
      * @api-request-field visitor[].email string Email，必填，需為合法格式，最長 150 字
-     * @api-request-example {"doorplate_id":12,"visit_reason":"業務洽談", "visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","phone":"0912-345-678","email":"wang@hseng.com.tw"}]}
+     * @api-request-example {"doorplate_id":12,"visit_reason": 1, "visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","phone":"0912-345-678","email":"wang@hseng.com.tw"}]}
      * @api-response-empty
      */
     public function create(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
             'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
-            'visit_reason' => ['required', 'string', 'max:255'],
+            'visit_reason' => ['required', 'int', 'max:50'],
             'visitor' => ['required', 'array', 'min:1', 'max:10'],
             'visitor.*.name' => ['required', 'string', 'max:100'],
             'visitor.*.company_name' => ['required', 'string', 'max:150'],

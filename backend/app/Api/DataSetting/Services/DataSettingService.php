@@ -60,6 +60,7 @@ class DataSettingService
             $data2->location = "地上";
             $data2->floor = $i;
             $data2->status = 1;
+            $data2->image = '';
             $data2->save();
         }
         // 地下
@@ -69,6 +70,7 @@ class DataSettingService
             $data2->location = "地下";
             $data2->floor = $i;
             $data2->status = 1;
+            $data2->image = '';
             $data2->save();
         }
 
