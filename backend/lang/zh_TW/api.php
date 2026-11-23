@@ -139,6 +139,28 @@ return [
         'not_checkable' => '此預約單目前狀態不可報到。',
     ],
 
+    'guest_record' => [
+        'not_found' => '找不到此訪客記錄。',
+        'export_title' => '訪客記錄',
+        'export_headers' => [
+            'reservation_id' => '預約單號',
+            'visit_at' => '來訪時間',
+            'guest_name' => '訪客姓名',
+            'guest_company_name' => '公司名稱',
+            'visit_reason' => '來訪事由',
+            'host_company_name' => '受訪公司',
+            'host_floor' => '接待樓層',
+            'host_name' => '受訪人',
+            'check_in_at' => '進場時間',
+            'check_out_at' => '離場時間',
+            'status' => '狀態',
+        ],
+        'status' => [
+            '40' => '在場中',
+            '50' => '已離場',
+        ],
+    ],
+
     'factory' => [
         'auth_failed' => '認證失敗',
         'app_not_found' => '找不到此 App。',

@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Api\Guest\Controllers\GuestApplyController;
+use App\Api\Guest\Controllers\GuestRecordController;
 use App\Api\Guest\Controllers\GuestSlotController;
 use App\Api\Guest\Controllers\FactoryGuestApplyController;
 
@@ -16,6 +17,13 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.cancel')->put('/{id}/cancel', [GuestApplyController::class, 'cancel'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.statusChange')->put('/{id}/status', [GuestApplyController::class, 'statusChange'])->whereNumber('id');
         Route::middleware('permission.api:api.guest.destroy')->delete('/{id}', [GuestApplyController::class, 'destroy'])->whereNumber('id');
+    });
+
+    // 訪客記錄：/stats 要放在 /{id} 之前（雖然 {id} 已限數字，保持順序一致較不易出錯）
+    Route::prefix('records')->group(function () {
+        Route::middleware('permission.api:api.guest.recordStats')->get('/stats', [GuestRecordController::class, 'recordStats']);
+        Route::middleware('permission.api:api.guest.records')->get('/', [GuestRecordController::class, 'records']);
+        Route::middleware('permission.api:api.guest.recordShow')->get('/{id}', [GuestRecordController::class, 'recordShow'])->whereNumber('id');
     });
 
     Route::prefix('slots')->group(function () {
