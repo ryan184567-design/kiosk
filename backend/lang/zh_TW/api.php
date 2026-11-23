@@ -161,6 +161,19 @@ return [
         ],
     ],
 
+    'guest_report' => [
+        'range_too_long' => '統計期間最多 :days 天，請縮小日期範圍。',
+        'export_title' => '訪客統計明細',
+        'export_headers' => [
+            'date' => '日期',
+            'total' => '來訪總人次',
+            'reserved' => '預約人次',
+            'onsite' => '臨時人次',
+            'companies' => '來訪公司數',
+            'top_visit_reason' => '最主要來訪事由',
+        ],
+    ],
+
     'factory' => [
         'auth_failed' => '認證失敗',
         'app_not_found' => '找不到此 App。',

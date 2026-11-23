@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Api\Guest\Controllers\GuestApplyController;
 use App\Api\Guest\Controllers\GuestRecordController;
+use App\Api\Guest\Controllers\GuestReportController;
 use App\Api\Guest\Controllers\GuestSlotController;
 use App\Api\Guest\Controllers\FactoryGuestApplyController;
 
@@ -24,6 +25,12 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.recordStats')->get('/stats', [GuestRecordController::class, 'recordStats']);
         Route::middleware('permission.api:api.guest.records')->get('/', [GuestRecordController::class, 'records']);
         Route::middleware('permission.api:api.guest.recordShow')->get('/{id}', [GuestRecordController::class, 'recordShow'])->whereNumber('id');
+    });
+
+    // 統計報表：兩支 API，總覽（卡片＋圖表）與明細（列表，支援匯出）
+    Route::prefix('reports')->group(function () {
+        Route::middleware('permission.api:api.guest.reports')->get('/', [GuestReportController::class, 'reports']);
+        Route::middleware('permission.api:api.guest.reportDetails')->get('/details', [GuestReportController::class, 'reportDetails']);
     });
 
     Route::prefix('slots')->group(function () {

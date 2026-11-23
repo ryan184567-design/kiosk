@@ -74,7 +74,7 @@ class GuestRecordService
         ?string $date_to = null,
         ?string $guest_name = null,
         ?string $company_name = null,
-        ?string $visit_reason = null,
+        ?int $visit_reason = null,
         ?int $status = null,
         ?string $keyword = null,
     ): Builder {
@@ -94,8 +94,8 @@ class GuestRecordService
         if (! empty($company_name)) {
             $query->whereHas('guests', fn ($g) => $g->where('company_name', 'like', '%'.$this->escapeLike($company_name).'%'));
         }
-        if (! empty($visit_reason)) {
-            $query->where('visit_reason', 'like', '%'.$this->escapeLike($visit_reason).'%');
+        if ($visit_reason !== null) {
+            $query->where('visit_reason', $visit_reason);
         }
         if ($status !== null) {
             $query->where('reservation_status', $status);

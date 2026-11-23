@@ -18,6 +18,7 @@ class ApiExampleFactory
      */
     private const BY_NAME = [
         '/^export$/' => 0,
+        '/^dictionary$/' => 'guest_visit_reason',
         '/^reservation_status$/' => 40,
         '/job_title$/' => '業務經理',
         '/^created_at$/' => '2026-11-23 15:32:00',

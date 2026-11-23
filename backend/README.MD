@@ -148,6 +148,7 @@ php artisan permission:audit-ceiling --site=1                    # 稽核越權�
 php artisan swagger:generate --pretty                            # 產生 API 文件（/docs、/docs/partner、/docs/hq）
 php artisan optimize:clear                                       # 改 .env／config 後；之後可補 package:discover
 php artisan jwt:sessions:prune [--dry-run]                       # 清過期 JWT 會話（排程每日 03:20）
+php artisan guest:stats-aggregate [--date=|--from= --to=]        # 彙整訪客每日統計到緩存表 guest_daily_stats（排程每日 00:05 彙整前一日；補歷史資料用 --from/--to，可重跑）
 php artisan test                                                 # 目前 ExampleTest 預期失敗（/ 會 302 到 /admin）
 vendor/bin/pint                                                  # 格式化；--test 只檢查
 composer audit; npm audit                                        # 依賴漏洞掃描

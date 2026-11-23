@@ -239,13 +239,21 @@ class SwaggerGenerateCommand extends Command
 
         preg_match_all('/\{(\w+)\}/', (string) ($parsed['path'] ?? ''), $pathMatches);
 
+        $pathOverrides = collect($parser->pathFields($parsed))->keyBy('path');
+
         foreach ($pathMatches[1] as $name) {
+            $override = $pathOverrides->get($name);
+            $schema = $override
+                ? $this->leafSchema($override['type'], $override['description'], $dicts, $name)
+                : ['type' => 'integer', 'example' => 1];
+            unset($schema['description']);
+
             $parameters[] = [
                 'name' => $name,
                 'in' => 'path',
                 'required' => true,
-                'schema' => ['type' => 'integer', 'example' => 1],
-                'description' => "路徑參數 {$name}",
+                'schema' => $schema,
+                'description' => $override['description'] ?? "路徑參數 {$name}",
             ];
         }
 

@@ -11,6 +11,7 @@ namespace App\Api\Guest\Controllers;
 
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
+use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Api\Guest\Services\GuestRecordService;
 use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Export\TableExporter;
@@ -64,17 +65,18 @@ class GuestRecordController extends BaseApiController
      * - `export` 決定輸出類型：0（預設）回傳 JSON 列表；1 下載 Excel（.xlsx）；2 下載 PDF
      * - `export` 為 1 或 2 時直接回傳檔案（不是 JSON），忽略 `page`、`per_page`，匯出符合篩選條件的全部資料，最多 5000 筆
      * - `date_from`／`date_to` 為預約日期區間（含頭尾），兩者皆可單獨使用
-     * - `guest_name`、`company_name` 比對來訪者姓名、公司名稱；`visit_reason` 比對來訪事由；`keyword` 同時比對單號、受訪人、來訪者姓名、公司、手機、車牌（皆為模糊查詢）
+     * - `guest_name`、`company_name` 比對來訪者姓名、公司名稱；`visit_reason` 為來訪事由（字典 guest_visit_reason 的值，精確比對）；`keyword` 同時比對單號、受訪人、來訪者姓名、公司、手機、車牌（皆為模糊查詢）
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
      * @api-portal admin
      * @api-dict guest_record_status 40=在場中,50=已離場
+     * @api-dict guest_visit_reason 1=業務洽談,2=工程維護,3=會議,4=送貨/收發,5=面試,6=參觀訪問,7=設備檢測,99=其他
      * @api-dict guest_record_export 0=JSON列表,1=Excel,2=PDF
      * @api-query-field export int 輸出類型，選填，預設 0；0=JSON列表、1=Excel、2=PDF
      * @api-query-field date_from string 預約日期起 YYYY-MM-DD，選填
      * @api-query-field date_to string 預約日期迄 YYYY-MM-DD，選填，不可早於 date_from
      * @api-query-field guest_name string 來訪者姓名，選填，最長 100 字
      * @api-query-field company_name string 來訪者公司名稱，選填，最長 150 字
-     * @api-query-field visit_reason string 來訪事由，選填，最長 255 字
+     * @api-query-field visit_reason int 來訪事由，選填，字典 guest_visit_reason 的值，不傳為全部
      * @api-query-field reservation_status int 狀態，選填；40=在場中、50=已離場，不傳為全部
      * @api-query-field keyword string 關鍵字，選填，最長 100 字
      * @api-query-field page int 頁碼，選填，預設 1，export 為 0 時有效
@@ -87,7 +89,7 @@ class GuestRecordController extends BaseApiController
      * @api-response-field data.items[].guest_name string 來訪者姓名，有多位時為第一位
      * @api-response-field data.items[].guest_company_name string 來訪者公司名稱，有多位時為第一位，未填為 null
      * @api-response-field data.items[].guest_count int 訪客人數
-     * @api-response-field data.items[].visit_reason string 來訪事由，未填為 null
+     * @api-response-field data.items[].visit_reason dict:guest_visit_reason 來訪事由
      * @api-response-field data.items[].host_company_name string 受訪公司名稱，門牌不存在時為 null
      * @api-response-field data.items[].host_floor string 接待樓層，門牌不存在時為 null
      * @api-response-field data.items[].host_name string 受訪人
@@ -102,7 +104,7 @@ class GuestRecordController extends BaseApiController
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼
      */
-    public function records(Request $request, GuestRecordService $service, TableExporter $exporter)
+    public function records(Request $request, GuestRecordService $service, TableExporter $exporter, GuestReasonDictionary $reasons)
     {
         $data = $this->validateInput($request, [
             'export' => 'nullable|integer|in:0,1,2',
@@ -110,7 +112,7 @@ class GuestRecordController extends BaseApiController
             'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
             'guest_name' => 'nullable|string|max:100',
             'company_name' => 'nullable|string|max:150',
-            'visit_reason' => 'nullable|string|max:255',
+            'visit_reason' => 'nullable|integer|min:0',
             'reservation_status' => 'nullable|integer|in:40,50',
             'keyword' => 'nullable|string|max:100',
             'page' => 'nullable|integer|min:1',
@@ -122,7 +124,7 @@ class GuestRecordController extends BaseApiController
             $data['date_to'] ?? null,
             $data['guest_name'] ?? null,
             $data['company_name'] ?? null,
-            $data['visit_reason'] ?? null,
+            isset($data['visit_reason']) ? (int) $data['visit_reason'] : null,
             isset($data['reservation_status']) ? (int) $data['reservation_status'] : null,
             $data['keyword'] ?? null,
         );
@@ -130,7 +132,7 @@ class GuestRecordController extends BaseApiController
         $export = (int) ($data['export'] ?? self::EXPORT_JSON);
 
         if ($export !== self::EXPORT_JSON) {
-            return $this->export($export, $query->limit(GuestRecordService::EXPORT_LIMIT)->get()->all(), $exporter);
+            return $this->export($export, $query->limit(GuestRecordService::EXPORT_LIMIT)->get()->all(), $exporter, $reasons);
         }
 
         $perPage = (int) ($data['per_page'] ?? 10);
@@ -156,6 +158,7 @@ class GuestRecordController extends BaseApiController
      * `health_declaration` 為 true 代表訪客在報到時已同意健康聲明（同意書）。
      * @api-portal admin
      * @api-dict guest_record_status 40=在場中,50=已離場
+     * @api-dict guest_visit_reason 1=業務洽談,2=工程維護,3=會議,4=送貨/收發,5=面試,6=參觀訪問,7=設備檢測,99=其他
      * @api-no-request-body
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
@@ -165,7 +168,7 @@ class GuestRecordController extends BaseApiController
      * @api-response-field data.host_floor string 接待樓層，門牌不存在時為 null
      * @api-response-field data.host_name string 受訪人
      * @api-response-field data.guest_count int 訪客人數
-     * @api-response-field data.visit_reason string 來訪事由，未填為 null
+     * @api-response-field data.visit_reason dict:guest_visit_reason 來訪事由
      * @api-response-field data.remark string 備註，未填為 null
      * @api-response-field data.access_card_no string 門禁卡號，尚未配發為 null
      * @api-response-field data.health_declaration bool 健康聲明是否已同意
@@ -187,12 +190,12 @@ class GuestRecordController extends BaseApiController
     }
 
     /** 列表匯出：1 Excel、2 PDF，欄位與畫面上的清單一致 */
-    private function export(int $export, array $applies, TableExporter $exporter)
+    private function export(int $export, array $applies, TableExporter $exporter, GuestReasonDictionary $reasons)
     {
         $title = __('api.guest_record.export_title');
         $headers = array_values(__('api.guest_record.export_headers'));
 
-        $rows = array_map(function (GuestApply $a) {
+        $rows = array_map(function (GuestApply $a) use ($reasons) {
             $first = $a->guests->first();
 
             return [
@@ -200,7 +203,7 @@ class GuestRecordController extends BaseApiController
                 $this->visitAt($a),
                 $first?->name,
                 $first?->company_name,
-                $a->visit_reason,
+                $reasons->label($a->visit_reason),
                 $a->doorplate?->company_name,
                 $a->doorplate?->floor,
                 $a->host_name,

@@ -182,6 +182,10 @@ class DictionaryController extends BaseApiController
      * @api-path /api/dictionaries/{dictionary}/items
      * @api-tag Dictionary
      * @api-summary 列出資料字典的項目
+     * @api-description
+     * 路徑的 `{dictionary}` 可以填字典 ID（純數字，例如 `3`），也可以直接填字典代碼
+     * （例如 `guest_visit_reason`），前端下拉選單建議用代碼，不必先查 ID。
+     * @api-path-field dictionary string 字典代碼或字典 ID，例如 guest_visit_reason
      * @api-portal *
      * @api-response-field data[].id int 項目ID
      * @api-response-field data[].value string 實際被引用的值
@@ -189,9 +193,12 @@ class DictionaryController extends BaseApiController
      * @api-response-field data[].is_enabled bool 是否啟用
      * @api-response-field data[].sort int 排序
      */
-    public function items(Request $request, int $dictionary)
+    public function items(Request $request, string $dictionary)
     {
-        $model = SystemDictionary::query()->find($dictionary);
+        // 純數字視為 ID，其餘視為字典代碼（代碼規則含英文字母，不會與 ID 衝突）
+        $model = SystemDictionary::query()
+            ->when(ctype_digit($dictionary), fn ($q) => $q->whereKey((int) $dictionary), fn ($q) => $q->where('code', $dictionary))
+            ->first();
 
         if (! $model) {
             return $this->fail(ErrorCode::VALIDATION_FAILED, __('api.dictionary.not_found'), 404);

@@ -73,6 +73,7 @@ class SiteBaselineSeeder extends Seeder
 
         $this->seedConfigTypeDictionary();
         $this->seedSiteStatusDictionary();
+        $this->seedGuestVisitReasonDictionary();
         $this->seedSiteBasicConfig();
         $this->seedAdminMenu();
         $this->bumpMenuCache();
@@ -248,6 +249,39 @@ class SiteBaselineSeeder extends Seeder
         $items = [
             ['value' => '1', 'label' => '正常營運'],
             ['value' => '0', 'label' => '維護中'],
+        ];
+
+        foreach ($items as $sort => $item) {
+            $dictionary->items()->updateOrCreate(
+                ['value' => $item['value']],
+                ['label' => $item['label'], 'is_enabled' => true, 'sort' => $sort]
+            );
+        }
+    }
+
+    // 訪客預約單 guest_applies.visit_reason 存的是這個字典的項目值（整數），統計報表與訪客記錄用它顯示文字；
+    // 後台「資料字典」可再新增項目。值一旦被預約單使用就不要改，要換說法請改 label。
+    private function seedGuestVisitReasonDictionary(): void
+    {
+        $dictionary = SystemDictionary::query()->updateOrCreate(
+            ['code' => 'guest_visit_reason'],
+            [
+                'name' => '訪客來訪事由',
+                'description' => 'guest_applies.visit_reason 的選項來源，供訪客登記／預約、訪客記錄與統計報表使用',
+                'is_enabled' => true,
+                'sort' => 2,
+            ]
+        );
+
+        $items = [
+            ['value' => '1', 'label' => '業務洽談'],
+            ['value' => '2', 'label' => '工程維護'],
+            ['value' => '3', 'label' => '會議'],
+            ['value' => '4', 'label' => '送貨/收發'],
+            ['value' => '5', 'label' => '面試'],
+            ['value' => '6', 'label' => '參觀訪問'],
+            ['value' => '7', 'label' => '設備檢測'],
+            ['value' => '99', 'label' => '其他'],
         ];
 
         foreach ($items as $sort => $item) {

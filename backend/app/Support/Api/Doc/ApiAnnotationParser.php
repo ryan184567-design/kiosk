@@ -19,7 +19,7 @@ class ApiAnnotationParser
     private const MULTILINE = ['description', 'response', 'request-example'];
 
     // 可重複標註：每次出現都收集成一筆，見 12.3、12.5。
-    private const REPEATABLE = ['response-field', 'request-field', 'query-field', 'dict'];
+    private const REPEATABLE = ['response-field', 'request-field', 'query-field', 'path-field', 'dict'];
 
     public function parseMethod(ReflectionMethod $method): ?array
     {
@@ -104,6 +104,17 @@ class ApiAnnotationParser
     public function queryFields(array $parsed): array
     {
         return $this->splitFieldLines($parsed['query-field'] ?? []);
+    }
+
+    /**
+     * 選填：覆寫路徑參數（{id}）的型別與說明：`@api-path-field {name} {type} {說明}`，
+     * 沒標的路徑參數預設 integer。
+     *
+     * @return array<int, array{path: string, type: string, description: string}>
+     */
+    public function pathFields(array $parsed): array
+    {
+        return $this->splitFieldLines($parsed['path-field'] ?? []);
     }
 
     // 見 12.5 第 2 點：`@api-dict {字典名稱} {值}={說明}[,{值}={說明}...]`，

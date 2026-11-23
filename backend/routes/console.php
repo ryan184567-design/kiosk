@@ -28,3 +28,8 @@ if (config('jwt_session.prune_enabled')) {
         ->dailyAt((string) config('jwt_session.prune_time'))
         ->withoutOverlapping();
 }
+
+// 訪客統計緩存：每天 00:05 彙整前一日資料到 guest_daily_stats（統計報表只查這張表），見 GuestStatsAggregateCommand。
+Schedule::command('guest:stats-aggregate')
+    ->dailyAt('00:05')
+    ->withoutOverlapping();
