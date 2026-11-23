@@ -19,7 +19,7 @@ class ApiAnnotationParser
     private const MULTILINE = ['description', 'response', 'request-example'];
 
     // 可重複標註：每次出現都收集成一筆，見 12.3、12.5。
-    private const REPEATABLE = ['response-field', 'request-field', 'dict'];
+    private const REPEATABLE = ['response-field', 'request-field', 'query-field', 'dict'];
 
     public function parseMethod(ReflectionMethod $method): ?array
     {
@@ -93,6 +93,17 @@ class ApiAnnotationParser
     public function requestFields(array $parsed): array
     {
         return $this->splitFieldLines($parsed['request-field'] ?? []);
+    }
+
+    /**
+     * GET／DELETE 的 query string 參數：`@api-query-field {name} {type} {說明}`，
+     * 說明含「必填」二字即視為必填，產出 OpenAPI 的 `in: query` parameter。
+     *
+     * @return array<int, array{path: string, type: string, description: string}>
+     */
+    public function queryFields(array $parsed): array
+    {
+        return $this->splitFieldLines($parsed['query-field'] ?? []);
     }
 
     // 見 12.5 第 2 點：`@api-dict {字典名稱} {值}={說明}[,{值}={說明}...]`，
