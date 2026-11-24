@@ -14,6 +14,8 @@ class GuestApprovalService
     public function list(
         ?string $date_from = null,
         ?string $date_to = null,
+        ?string $apply_date_from = null,
+        ?string $apply_date_to = null,
         ?int $status = null,
         ?string $keyword = null) :Builder
     {
@@ -31,10 +33,16 @@ class GuestApprovalService
             });
         }
         if (! empty($date_from)) {
-            $query->whereDate('visit_date', '>=', $date_from);
+            $query->whereDate('created_at', '>=', $date_from);
         }
         if (! empty($date_to)) {
-            $query->whereDate('visit_date', '<=', $date_to);
+            $query->whereDate('created_at', '<=', $date_to);
+        }
+        if (! empty($date_from)) {
+            $query->whereDate('visit_date', '>=', $apply_date_from);
+        }
+        if (! empty($date_to)) {
+            $query->whereDate('visit_date', '<=', $apply_date_to);
         }
         if (isset($status) && $status !== '') {
             if($status == 0) {

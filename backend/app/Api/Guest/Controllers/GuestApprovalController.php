@@ -38,8 +38,10 @@ class GuestApprovalController extends BaseApiController
      * @api-dict guest_record_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
      * @api-dict guest_record_export 0=JSON列表,1=Excel,2=PDF
      * @api-query-field export int 輸出類型，選填，預設 0；0=JSON列表、1=Excel、2=PDF
-     * @api-query-field date_from string 預約日期起 YYYY-MM-DD，選填
-     * @api-query-field date_to string 預約日期迄 YYYY-MM-DD，選填，不可早於 date_from
+     * @api-query-field date_from string 申請日期起 YYYY-MM-DD，選填
+     * @api-query-field date_to string 申請日期迄 YYYY-MM-DD，選填，不可早於 date_from
+     * @api-query-field apply_date_from string 預約日期起 YYYY-MM-DD，選填
+     * @api-query-field apply_date_to string 預約日期迄 YYYY-MM-DD，選填，不可早於 apply_date_from
      * @api-query-field reservation_status int 狀態，選填；0=待審核、1=已審核、70=已拒絕，不傳為全部
      * @api-query-field keyword string 關鍵字，選填，最長 100 字
      * @api-query-field page int 頁碼，選填，預設 1，export 為 0 時有效
@@ -72,6 +74,8 @@ class GuestApprovalController extends BaseApiController
             'export' => 'nullable|integer|in:0,1,2',
             'date_from' => 'nullable|date_format:Y-m-d',
             'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
+            'apply_date_from' => 'nullable|date_format:Y-m-d',
+            'apply_date_to' => 'nullable|date_format:Y-m-d|after_or_equal:apply_date_from',
             'reservation_status' => 'nullable|integer|in:0,1,70',
             'keyword' => 'nullable|string|max:100',
             'page' => 'nullable|integer|min:1',
@@ -81,6 +85,8 @@ class GuestApprovalController extends BaseApiController
         $query = $service->list(
             $data['date_from'] ?? null,
             $data['date_to'] ?? null,
+            $data['apply_date_from'] ?? null,
+            $data['apply_date_to'] ?? null,
             isset($data['reservation_status']) ? (int) $data['reservation_status'] : null,
             $data['keyword'] ?? null,
         );
