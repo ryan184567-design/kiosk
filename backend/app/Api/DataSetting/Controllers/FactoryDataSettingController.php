@@ -5,6 +5,7 @@ namespace App\Api\DataSetting\Controllers;
 use App\Api\DataSetting\Services\DataSettingService;
 use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Support\Api\Concerns\MapsServiceExceptions;
+use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Http\Controllers\BaseApiController;
 
 // 機器接口標註慣例見 FactoryAuthController 開頭與 DEVELOP.MD 12.9：@api-auth app + @api-scope，
@@ -12,6 +13,7 @@ use App\Support\Http\Controllers\BaseApiController;
 class FactoryDataSettingController extends BaseApiController
 {
     use MapsServiceExceptions;
+    use PaginationHelper;
 
     /**
      * @api-method GET
