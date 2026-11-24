@@ -56,7 +56,7 @@ class FactoryGuestApplyController extends BaseApiController
     public function index(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'fast_pass_code' => 'required|string|20',
+            'fast_pass_code' => 'required|string|max:20',
         ]);
 
         try {
