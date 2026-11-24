@@ -6,6 +6,7 @@ namespace App\Api\Guest\Services;
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 use App\Api\Guest\Models\GuestSlot;
+use App\Support\Dashboard\DashboardReporter;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -195,6 +196,8 @@ class GuestApplyService
             'access_card_no' => null
         ]);
 
+        DashboardReporter::cancelled($apply);   // 上報儀錶板：取消
+
         return $apply;
     }
 
@@ -227,6 +230,15 @@ class GuestApplyService
         }
 
         $apply->update($updateData);
+
+        // 上報儀錶板：審核通過（10 核准、11 修改後重新核准）
+        if ((int) $reservation_status === $status) {
+            // 狀態沒變（重複送出同一個狀態）不重複上報
+        } elseif ($status === GuestApply::STATUS_APPROVED) {
+            DashboardReporter::approved($apply);
+        } elseif ($status === GuestApply::STATUS_EDIT_APPROVED) {
+            DashboardReporter::modified($apply);
+        }
 
         return $apply;
     }
@@ -291,6 +303,8 @@ class GuestApplyService
             return $apply;
         });
 
+        DashboardReporter::checkin($apply);   // 上報儀錶板：報到（交易已提交）
+
         return $apply;
     }
 
@@ -324,6 +338,8 @@ class GuestApplyService
 
             return $apply;
         });
+
+        DashboardReporter::checkout($apply);   // 上報儀錶板：離場（交易已提交）
 
         return $apply;
     }

@@ -161,6 +161,22 @@ return [
         ],
     ],
 
+    'guest_kiosk' => [
+        'fault_messages' => [
+            'PRINTER_PAPER_OUT' => '熱敏出單機缺紙',
+            'PRINTER_DISCONNECTED' => '熱敏出單機連接故障',
+            'ID_SCANNER_DISCONNECTED' => '身份證掃描器連接故障',
+            'SYSTEM_OK' => '系統正常',
+        ],
+    ],
+
+    'dashboard_report' => [
+        'url_missing' => '尚未設定儀錶板網址，請先填寫網址再測試。',
+        'auth_duplicate' => '同一位置下的欄位名稱不可重複。',
+        'auth_reserved' => '放進 POST 內容的欄位名稱不可使用 notify_type、message_id、sent_at。',
+        'auth_value_required' => '這一組尚未設定值，請填寫值。',
+    ],
+
     'guest_report' => [
         'range_too_long' => '統計期間最多 :days 天，請縮小日期範圍。',
         'export_title' => '訪客統計明細',

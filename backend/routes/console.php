@@ -33,3 +33,8 @@ if (config('jwt_session.prune_enabled')) {
 Schedule::command('guest:stats-aggregate')
     ->dailyAt('00:05')
     ->withoutOverlapping();
+
+// 儀錶板心跳：每分鐘給儀錶板上報一次（各子站依「儀錶板上報設定」決定要不要上報），見 DashboardReportHeartbeatCommand。
+Schedule::command('dashboard:report-heartbeat')
+    ->everyMinute()
+    ->withoutOverlapping();

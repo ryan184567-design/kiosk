@@ -149,6 +149,7 @@ php artisan swagger:generate --pretty                            # 產生 API �
 php artisan optimize:clear                                       # 改 .env／config 後；之後可補 package:discover
 php artisan jwt:sessions:prune [--dry-run]                       # 清過期 JWT 會話（排程每日 03:20）
 php artisan guest:stats-aggregate [--date=|--from= --to=]        # 彙整訪客每日統計到緩存表 guest_daily_stats（排程每日 00:05 彙整前一日；補歷史資料用 --from/--to，可重跑）
+php artisan dashboard:report-heartbeat [--site=]                # 給儀錶板上報一次心跳（排程每分鐘執行，各子站依「儀錶板上報設定」決定是否上報；上報走佇列：5 秒逾時、失敗 10 秒後重試、共 3 次失敗丟棄，需 queue:work 常駐，見 docs/DASHBOARD_REPORT.MD）
 php artisan test                                                 # 目前 ExampleTest 預期失敗（/ 會 302 到 /admin）
 vendor/bin/pint                                                  # 格式化；--test 只檢查
 composer audit; npm audit                                        # 依賴漏洞掃描

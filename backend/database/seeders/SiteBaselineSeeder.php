@@ -74,6 +74,7 @@ class SiteBaselineSeeder extends Seeder
         $this->seedConfigTypeDictionary();
         $this->seedSiteStatusDictionary();
         $this->seedGuestVisitReasonDictionary();
+        $this->seedDashboardReportDictionaries();
         $this->seedSiteBasicConfig();
         $this->seedAdminMenu();
         $this->bumpMenuCache();
@@ -289,6 +290,50 @@ class SiteBaselineSeeder extends Seeder
                 ['value' => $item['value']],
                 ['label' => $item['label'], 'is_enabled' => true, 'sort' => $sort]
             );
+        }
+    }
+
+    // 儀錶板上報設定（GET／PUT /api/guest/dashboard-settings）各下拉／勾選項目的選項來源。
+    // 目前上傳方式、格式、排程各只支援一個值，但仍建成字典，之後新增選項（例如檔案上傳、定時上傳）只要加字典項目與後端支援。
+    private function seedDashboardReportDictionaries(): void
+    {
+        $dictionaries = [
+            ['code' => 'dashboard_upload_method', 'name' => '儀錶板上傳方式', 'sort' => 3, 'items' => [
+                ['value' => 'api', 'label' => 'API 傳送'],
+            ]],
+            ['code' => 'dashboard_format', 'name' => '儀錶板上傳格式', 'sort' => 4, 'items' => [
+                ['value' => 'json', 'label' => 'JSON'],
+            ]],
+            ['code' => 'dashboard_content', 'name' => '儀錶板上傳內容', 'sort' => 5, 'items' => [
+                ['value' => 'heartbeat', 'label' => '心跳（含訪客機故障）'],
+                ['value' => 'approved', 'label' => '核准'],
+                ['value' => 'modified', 'label' => '修改'],
+                ['value' => 'cancelled', 'label' => '取消'],
+                ['value' => 'checkin', 'label' => '報到'],
+                ['value' => 'checkout', 'label' => '離場'],
+            ]],
+            ['code' => 'dashboard_schedule', 'name' => '儀錶板上傳排程', 'sort' => 6, 'items' => [
+                ['value' => 'realtime', 'label' => '即時上傳'],
+            ]],
+        ];
+
+        foreach ($dictionaries as $def) {
+            $dictionary = SystemDictionary::query()->updateOrCreate(
+                ['code' => $def['code']],
+                [
+                    'name' => $def['name'],
+                    'description' => 'dashboard_report_settings 的選項來源，供「儀錶板上報設定」頁使用',
+                    'is_enabled' => true,
+                    'sort' => $def['sort'],
+                ]
+            );
+
+            foreach ($def['items'] as $sort => $item) {
+                $dictionary->items()->updateOrCreate(
+                    ['value' => $item['value']],
+                    ['label' => $item['label'], 'is_enabled' => true, 'sort' => $sort]
+                );
+            }
         }
     }
 
