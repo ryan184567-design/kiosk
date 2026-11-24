@@ -80,7 +80,7 @@ class GuestApplyService
             'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? 0) : 0,
             'reservation_id' => $this->nextAppliesNo(),
             'qr_code' => $this->uniqueCode('qr_code', fn () => Str::random(40)),
-            'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(10000000, 99999999)),
+            'fast_pass_code' => $this->uniqueCode('fast_pass_code', fn () => (string) random_int(1000000000, 9999999999)),
             'reservation_type' => $reservation_type,
             'reservation_status' => $reservation_status,
             'consent_form' => 0,
@@ -117,7 +117,7 @@ class GuestApplyService
 
         return $apply;
     }
-    
+
     /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼。
      */

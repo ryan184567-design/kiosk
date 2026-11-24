@@ -136,8 +136,6 @@ class GuestApplyController extends BaseApiController
      * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason": 1,"remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
-     * @api-response-field data.qr_code string QR code 驗證碼（修改不會重新產生）
-     * @api-response-field data.fast_pass_code string 速通碼（修改不會重新產生）
      */
     public function store(Request $request, GuestApplyService $service)
     {
@@ -261,8 +259,6 @@ class GuestApplyController extends BaseApiController
      * @api-request-example {"doorplate_id":12,"visit_date":"2026-11-21","visit_start_time":"14:00","visit_end_time":"15:00","guest_count":2,"host_name":"陳志明","visit_reason": 1,"remark":"改約下午","is_email_notify":true,"is_sms_notify":false,"is_auto_remind":true,"remind_time":60,"visitor":[{"name":"王小明","company_name":"宏昇工程股份有限公司","title":"業務經理","phone":"0912-345-678","email":"wang@hseng.com.tw","plate_number":"ABC-1234"},{"name":"李大華","company_name":"宏昇工程股份有限公司","phone":"0933-111-222"}]}
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
-     * @api-response-field data.qr_code string QR code 驗證碼（修改不會重新產生）
-     * @api-response-field data.fast_pass_code string 速通碼（修改不會重新產生）
      */
     public function update(Request $request, int $id, GuestApplyService $service)
     {
@@ -378,8 +374,6 @@ class GuestApplyController extends BaseApiController
     {
         return [
             'reservation_id' => $guestapply->reservation_id,
-            'qr_code' => $guestapply->qr_code,
-            'fast_pass_code' => $guestapply->fast_pass_code,
         ];
     }
 
