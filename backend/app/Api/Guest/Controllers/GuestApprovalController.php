@@ -60,7 +60,8 @@ class GuestApprovalController extends BaseApiController
      * @api-response-field data.items[].host_company_name string 受訪公司名稱，門牌不存在時為 null
      * @api-response-field data.items[].host_floor string 接待樓層，門牌不存在時為 null
      * @api-response-field data.items[].host_name string 受訪人
-     * @api-response-field data.reason array 來訪事由列表
+     * @api-response-field data.reason object 來訪事由列表
+     * @api-response-field data.reason[] string 來訪事由選項。key 為選項代碼（數字，以字串形式出現），value 為顯示文字；
      * @api-response-field data.total int 符合條件的總筆數
      * @api-response-field data.per_page int 每頁筆數，-1 代表不分頁
      * @api-response-field data.current_page int 目前頁碼

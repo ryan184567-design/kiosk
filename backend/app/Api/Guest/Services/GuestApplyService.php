@@ -30,7 +30,6 @@ class GuestApplyService
 
     private const CANCELLABLE_STATUSES = self::EDITABLE_STATUSES;
 
-
     /**
      * 預約單查詢條件（不分頁，分頁由 Controller 的 paginateOrGet 處理）。
      */
@@ -118,6 +117,7 @@ class GuestApplyService
 
         return $apply;
     }
+    
     /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼。
      */

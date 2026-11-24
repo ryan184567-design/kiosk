@@ -129,4 +129,23 @@ class DataSettingService
     {
         $doorplate->delete();
     }
+
+    public function companyList(): array
+    {
+        return Doorplate::query()
+            ->select(['id', 'floor', 'company_name'])
+            ->orderBy('company_name')
+            ->get()
+            ->groupBy('floor')
+            ->sortKeys(SORT_NATURAL)
+            ->map(fn ($rows, $floor) => [
+                'floor' => (string) $floor,
+                'companies' => $rows->map(fn (Doorplate $d) => [
+                    'id' => $d->id,
+                    'company_name' => $d->company_name,
+                ])->values()->all(),
+            ])
+            ->values()
+            ->all();
+    }
 }

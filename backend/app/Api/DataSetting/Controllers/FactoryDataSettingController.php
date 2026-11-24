@@ -2,12 +2,10 @@
 
 namespace App\Api\DataSetting\Controllers;
 
-use App\Api\DataSetting\Models\Doorplate;
 use App\Api\DataSetting\Services\DataSettingService;
 use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Http\Controllers\BaseApiController;
-use Illuminate\Http\Request;
 
 // 機器接口標註慣例見 FactoryAuthController 開頭與 DEVELOP.MD 12.9：@api-auth app + @api-scope，
 // 權限由路由上的 factory.scope:xxx 聲明，兩者要一致。
@@ -24,49 +22,22 @@ class FactoryDataSettingController extends BaseApiController
      * @api-auth app
      * @api-scope data_setting.doorplate.index
      * @api-description
-     * 訪客機列出目前樓層、門牌、公司名稱資訊
-     * @api-query-field page int optional 頁碼（預設 1）
-     * @api-query-field per_page int optional 每頁筆數，-1 代表全部，未傳則使用配置值
-     * @api-response-field data.items[].id int 門牌ID
-     * @api-response-field data.items[].doorplate int 門牌
+     * 訪客機畫面用的選項：依樓層分組的門牌（公司）清單，以及來訪事由清單。
+     * 樓層依自然排序（2 排在 10 之前），同一樓層內依公司名稱排序。
+     * @api-no-request-body
+     * @api-response-field data.items array 樓層清單
      * @api-response-field data.items[].floor int 樓層
-     * @api-response-field data.items[].household int 室/戶/之
-     * @api-response-field data.items[].company_name string 公司名稱
-     * @api-response-field data.reason array 來訪事由列表
+     * @api-response-field data.items[].companies array 該樓層的公司（門牌）
+     * @api-response-field data.items[].companies[].id int 門牌ID，新增預約時作為 doorplate_id
+     * @api-response-field data.items[].companies[].company_name string 公司名稱
+     * @api-response-field data.reason object 來訪事由列表
+     * @api-response-field data.reason[] string 來訪事由選項。key 為選項代碼（數字，以字串形式出現），value 為顯示文字；
      */
-    public function index(Request $request, DataSettingService $service, GuestReasonDictionary $reason)
+    public function index(DataSettingService $service, GuestReasonDictionary $reason)
     {
-        $data = $this->validateInput($request, [
-            'page' => 'nullable|int|min:1',
-            'per_page' => 'nullable|int|min:-1|max:200',
+        return $this->success([
+            'items' => $service->companyList(),
+            'reason' => $reason->labels(),
         ]);
-
-        $perPage = (int) ($data['per_page'] ?? -1);
-
-        $result = $this->paginateOrGet(
-            $service->doorplate(),
-            $perPage === 0 ? 10 : $perPage,
-            (int) ($data['page'] ?? 1),
-        );
-
-        $result['items'] = collect($result['items'])
-            ->map(fn (Doorplate $doorplate) => $this->present($doorplate))
-            ->all();
-
-        $result['reason'] = $reason->labels();
-
-        return $this->success($result);
     }
-
-    private function present(Doorplate $doorplate): array
-    {
-        return [
-            'id' => $doorplate->id,
-            'doorplate' => $doorplate->doorplate,
-            'floor' => $doorplate->floor,
-            'household' => $doorplate->household,
-            'company_name' => $doorplate->company_name,
-        ];
-    }
-
 }
