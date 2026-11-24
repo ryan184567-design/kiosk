@@ -44,6 +44,20 @@ export function isValidPassCode(code) {
   return new RegExp(`^\\d{${PASS_CODE_LENGTH}}$`).test(code || '')
 }
 
+/**
+ * 速通碼分組顯示（以空白分隔，方便核對），依速通碼長度決定每組碼數：
+ *   12 碼以內分成前後兩組（例：10 碼 12345 67890、8 碼 1234 5678、9 碼 12345 6789）
+ *   超過 12 碼則每 4 碼一組
+ * @param {string} code    要顯示的速通碼（輸入中可未滿長度）
+ * @param {number} length  速通碼總長度，預設為設定值；輸入中時依總長度分組，分隔位置才不會跳動
+ */
+export function formatPassCode(code, length = PASS_CODE_LENGTH) {
+  const s = String(code || '')
+  const size = length <= 12 ? Math.ceil(length / 2) : 4
+  if (size <= 0) return s
+  return s.match(new RegExp(`.{1,${size}}`, 'g'))?.join(' ') || ''
+}
+
 export function resetVisit() {
   // 只在有進行中的報到時記錄，並只保留重點資料
   if (visit.mode) {

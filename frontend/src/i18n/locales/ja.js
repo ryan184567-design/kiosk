@@ -35,6 +35,8 @@ export default {
     wait: 'しばらくお待ちください',
     success: '予約が確認されました',
     fetching: '予約情報を取得しています...',
+    visitor: '来訪者',
+    host: '訪問先',
     failTitle: '予約が見つかりません',
     failHint: '入力内容をご確認いただくか、受付にお問い合わせください',
     reenter: '再入力',

@@ -16,7 +16,7 @@ const router = useRouter()
 const failed = ref(false)
 // 報到時證件櫃已被占用或預約狀態不符（後端回 404）：讓訪客重新選擇證件櫃
 const slotRejected = ref(false)
-let issued = null // 已發行的訪客證 { cardNo, badgeNo }
+let issued = null // 已發行的訪客證 { cardNo, qrContent, badgeNo }
 let printedAt = null // 列印成功的時間
 
 const run = async () => {
@@ -35,13 +35,13 @@ const run = async () => {
     if (!printedAt) {
       const time = new Date().toISOString()
       await printBadge({
-        qrContent: issued.cardNo,
+        qrContent: issued.qrContent, // 門禁卡號（後端未回傳時暫以預約單號代替）
         badgeNo: issued.badgeNo,
         locker: visit.locker?.label || '', // 證件存放格位（無存放證件時不列印）
         printedAt: time,
       })
       printedAt = time
-      debug('Flow', `⑦ 訪客證列印完成（QR：${issued.cardNo}）`)
+      debug('Flow', `⑦ 訪客證列印完成（QR：${issued.qrContent}）`)
     }
     await notifyHost(visit)
     visit.badge = { ...issued, printedAt }

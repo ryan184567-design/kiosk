@@ -35,6 +35,8 @@ export default {
     wait: '請稍候',
     success: '預約驗證成功',
     fetching: '正在取得您的預約資料...',
+    visitor: '訪客',
+    host: '受訪人',
     failTitle: '查無預約資料',
     failHint: '請確認輸入的資料是否正確，或洽櫃台人員協助',
     reenter: '重新輸入',

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatPassCode } from '@/stores/visit'
 
 const model = defineModel({ type: String, default: '' })
 const props = defineProps({
@@ -11,8 +12,8 @@ const emit = defineEmits(['confirm'])
 
 const DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
-// 每 5 碼以空白分隔，方便核對，例：12345 67890
-const display = computed(() => model.value.replace(/(\d{5})(?=\d)/g, '$1 '))
+// 依速通碼長度分組顯示，方便核對，例：10 碼 12345 67890、8 碼 1234 5678
+const display = computed(() => formatPassCode(model.value, props.maxLength))
 
 const press = (d) => {
   if (model.value.length < props.maxLength) model.value += d

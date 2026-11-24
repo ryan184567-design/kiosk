@@ -35,6 +35,8 @@ export default {
     wait: 'Please wait',
     success: 'Appointment verified',
     fetching: 'Retrieving your appointment details...',
+    visitor: 'Visitor',
+    host: 'Host',
     failTitle: 'Appointment not found',
     failHint: 'Please check your input or contact the front desk',
     reenter: 'Try again',

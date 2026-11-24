@@ -139,20 +139,21 @@ async function assignLockerImpl(slot) {
 
 /**
  * 完成報到並取得門禁卡號（guest/done）：寫入證件櫃與同意書，回傳門禁卡號（QR Code 內容）
- * @returns {{ cardNo: string, badgeNo: string, guestCount: number }}
+ * @returns {{ cardNo: string|null, qrContent: string, badgeNo: string, guestCount: number }}
+ *   cardNo：後端回傳的門禁卡號（access_card_no），未回傳時為 null
+ *   qrContent：訪客證 QR Code 內容，為門禁卡號；未回傳時暫以預約單號代替
  * @throws {Error} 證件櫃已被占用、預約狀態不符時 err.code 為 NOT_FOUND
  */
 async function issueBadgeImpl(visit) {
   const d = await factoryRequest('POST', '/guest/done', {
     body: { id: visit.reservation?.id, slot: visit.locker?.id, consent_form: visit.agreed ? 1 : 0 },
   })
-  let cardNo = d.access_card_no
+  const cardNo = d.access_card_no ? String(d.access_card_no) : null
   if (!cardNo) {
-    // 後端目前尚未寫入門禁卡號：先以預約單號暫代，避免無法列印
-    logWarning('API', `後端未回傳門禁卡號，暫以預約單號 ${d.reservation_id} 列印`)
-    cardNo = d.reservation_id
+    // 後端尚未寫入門禁卡號：QR Code 先以預約單號暫代，避免無法列印
+    logWarning('API', `後端未回傳門禁卡號（access_card_no），QR Code 暫以預約單號 ${d.reservation_id} 列印`)
   }
-  return { cardNo: String(cardNo), badgeNo: d.reservation_id, guestCount: d.guest_count }
+  return { cardNo, qrContent: cardNo || d.reservation_id, badgeNo: d.reservation_id, guestCount: d.guest_count }
 }
 
 /**
@@ -178,57 +179,79 @@ async function notifyHostImpl() {
 
 // ── 無預約 ─────────────────────────────────────────
 
-const DOORPLATE_CACHE_MS = 5 * 60 * 1000
-let doorplateCache = null // { at, promise }
+const OPTIONS_CACHE_MS = 5 * 60 * 1000
+let optionsCache = null // { at, promise }
 
-/** 門牌列表（樓層、門牌、公司），快取一段時間供選樓層 / 選公司共用 */
-function loadDoorplates() {
-  if (!doorplateCache || Date.now() - doorplateCache.at > DOORPLATE_CACHE_MS) {
-    const promise = factoryRequest('GET', '/data_setting/index', { query: { per_page: -1 } }).then(listOf)
-    doorplateCache = { at: Date.now(), promise }
+/**
+ * 訪客機選項（data_setting/index）：依樓層分組的公司（門牌）清單與來訪事由字典
+ * 後端回應：{ items: [{ floor: '2', companies: [{ id, company_name }] }], reason: { '1': '業務洽談', … } }
+ * 快取一段時間，供選樓層 / 選公司 / 拜訪事由共用
+ * @returns {Promise<{ floors: Array<{ floor: string, companies: Array<{ id, name }> }>, reasons: Array<{ id: number, label: string }> }>}
+ */
+function loadKioskOptions() {
+  if (!optionsCache || Date.now() - optionsCache.at > OPTIONS_CACHE_MS) {
+    const promise = factoryRequest('GET', '/data_setting/index').then((data) => ({
+      floors: listOf(data).map((f) => ({
+        floor: String(f.floor ?? ''),
+        companies: (f.companies || [])
+          .filter((c) => c.company_name)
+          .map((c) => ({ id: c.id, name: c.company_name })),
+      })),
+      // reason 為 { 值: 顯示文字 }；沒有資料時後端回空陣列
+      reasons: Object.entries(data?.reason || {})
+        .map(([value, label]) => ({ id: Number(value), label: String(label) }))
+        .filter((r) => Number.isInteger(r.id) && r.label),
+    }))
+    optionsCache = { at: Date.now(), promise }
     // 失敗時不快取，下次重新取得
     promise.catch(() => {
-      if (doorplateCache?.promise === promise) doorplateCache = null
+      if (optionsCache?.promise === promise) optionsCache = null
     })
   }
-  return doorplateCache.promise
+  return optionsCache.promise
 }
 
-const floorLabel = (floor) => (floor < 0 ? `B${-floor}` : `${floor}F`)
+/** 樓層顯示文字：數字顯示為 2F，負數顯示為 B1，其他（例如 B1、RF）原樣顯示 */
+function floorLabel(floor) {
+  const n = Number(floor)
+  if (floor === '' || !Number.isInteger(n)) return floor
+  return n < 0 ? `B${-n}` : `${n}F`
+}
 
-/** 取得可拜訪的樓層（依門牌資料） */
+/** 取得可拜訪的樓層（只列出有公司的樓層，順序依後端） */
 async function getFloorsImpl() {
-  const doorplates = await loadDoorplates()
-  const floors = [...new Set(doorplates.map((d) => Number(d.floor)).filter(Number.isFinite))].sort((a, b) => a - b)
-  return floors.map((f) => ({ id: f, label: floorLabel(f) }))
+  const { floors } = await loadKioskOptions()
+  return floors.filter((f) => f.companies.length).map((f) => ({ id: f.floor, label: floorLabel(f.floor) }))
 }
 
 /**
  * 取得樓層內的公司
- * @returns {Array<{ id: number, name: string, doorplate, household }>} id 為門牌 ID（無預約登記時送出）
+ * @returns {Array<{ id: number, name: string }>} id 為門牌 ID（無預約登記時作為 doorplate_id 送出）
  */
 async function getCompaniesImpl(floorId) {
-  const doorplates = await loadDoorplates()
-  return doorplates
-    .filter((d) => Number(d.floor) === Number(floorId) && d.company_name)
-    .map((d) => ({ id: d.id, name: d.company_name, doorplate: d.doorplate, household: d.household }))
+  const { floors } = await loadKioskOptions()
+  return floors.find((f) => f.floor === String(floorId))?.companies || []
 }
 
+// 後端來訪事由字典沒有資料時的暫代清單（key 對應 i18n walkIn.purposes.*）
+const FALLBACK_REASONS = [
+  { id: 1, key: 'business' },
+  { id: 2, key: 'meeting' },
+  { id: 3, key: 'interview' },
+  { id: 4, key: 'delivery' },
+  { id: 5, key: 'maintenance' },
+  { id: 6, key: 'other' },
+]
+
 /**
- * 取得拜訪事由
- * 後端尚未提供拜訪事由 API，先使用暫代清單（id 為送給後端的 visit_reason，key 對應 i18n walkIn.purposes.*）
- * 待後端提供後改為呼叫 API，回傳 { id, label } 即可（畫面優先顯示 label）
- * @returns {Array<{ id: number, key?: string, label?: string }>}
+ * 取得拜訪事由（後端來訪事由字典 guest_visit_reason）
+ * @returns {Array<{ id: number, label?: string, key?: string }>} id 為送給後端的 visit_reason
  */
 async function getVisitReasonsImpl() {
-  return [
-    { id: 1, key: 'business' },
-    { id: 2, key: 'meeting' },
-    { id: 3, key: 'interview' },
-    { id: 4, key: 'delivery' },
-    { id: 5, key: 'maintenance' },
-    { id: 6, key: 'other' },
-  ]
+  const { reasons } = await loadKioskOptions()
+  if (reasons.length) return reasons
+  logWarning('API', '後端來訪事由字典沒有資料，改用暫代清單')
+  return FALLBACK_REASONS
 }
 
 /**
@@ -265,13 +288,14 @@ async function registerWalkInImpl({ company, visitor }) {
  * @throws {Error} 查無已報到的預約單時 err.code 為 NOT_FOUND
  */
 async function checkOutImpl({ code }) {
-  // 後端 card_no 為整數：非數字內容（例如其他 QR Code）不可能是門禁卡號
-  if (!/^\d{1,18}$/.test(String(code || '').trim())) {
+  // 門禁卡號為數字（後端以字串接收，最長 20 字元）：非數字內容（例如其他 QR Code）不可能是門禁卡號
+  const cardNo = String(code || '').trim()
+  if (!/^\d{1,20}$/.test(cardNo)) {
     const err = new Error('Not an access card number')
     err.code = 'NOT_FOUND'
     throw err
   }
-  await factoryRequest('POST', '/guest/leave', { body: { card_no: Number(code) } })
+  await factoryRequest('POST', '/guest/leave', { body: { card_no: cardNo } })
   return { visitorName: null, company: null, checkOutAt: new Date().toISOString(), locker: null }
 }
 

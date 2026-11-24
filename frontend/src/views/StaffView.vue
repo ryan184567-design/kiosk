@@ -18,6 +18,7 @@ import SettingsDrawer from '@/components/SettingsDrawer.vue'
 import { emit, on, realtime } from '@/realtime/socket'
 import { useClock } from '@/composables/useClock'
 import { debug } from '@/utils/logger'
+import { formatPassCode } from '@/stores/visit'
 
 const clock = useClock()
 const settingsOpen = ref(false)
@@ -180,7 +181,7 @@ onBeforeUnmount(() => offs.forEach((off) => off()))
               </a-descriptions-item>
               <a-descriptions-item label="速通碼">
                 <template v-if="visit.passCode">
-                  {{ visit.passCode.replace(/(\d{5})(?=\d)/g, '$1 ') }}
+                  {{ formatPassCode(visit.passCode, visit.passCode.length) }}
                   <a-tag :color="visit.passCodeSource === 'scan' ? 'green' : 'blue'">
                     {{ visit.passCodeSource === 'scan' ? '掃描 QR Code' : '手動輸入' }}
                   </a-tag>
