@@ -37,7 +37,13 @@ class GuestApprovalService
             $query->whereDate('visit_date', '<=', $date_to);
         }
         if (isset($status) && $status !== '') {
-            $query->where('reservation_status', (int) $status);
+            if($status == 0) {
+                $query->whereIn('reservation_status', [0, 1]);
+            } else if ($status == 1) {
+                $query->whereIn('reservation_status', [10, 11]);
+            } else {
+                $query->whereIn('reservation_status', (int) $status);
+            }
         }
 
         return $query;

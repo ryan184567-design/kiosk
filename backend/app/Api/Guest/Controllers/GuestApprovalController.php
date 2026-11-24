@@ -219,8 +219,8 @@ class GuestApprovalController extends BaseApiController
             'guest_name' => $first?->name,
             'guest_company_name' => $first?->company_name,
             'guest_title' => $first?->title,
-            'guest_phone' => $first?->company_phone,
-            'guest_email' => $first?->company_email,
+            'guest_phone' => $first?->phone,
+            'guest_email' => $first?->email,
         ];
     }
 }
