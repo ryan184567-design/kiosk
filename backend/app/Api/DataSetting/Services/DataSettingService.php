@@ -134,6 +134,10 @@ class DataSettingService
     {
         return Doorplate::query()
             ->select(['id', 'floor', 'company_name'])
+            // 訪客機只列出啟用中、且有公司名稱的門牌
+            ->where('status', 1)
+            ->whereNotNull('company_name')
+            ->where('company_name', '!=', '')
             ->orderBy('company_name')
             ->get()
             ->groupBy('floor')

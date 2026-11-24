@@ -4,17 +4,12 @@ namespace App\Api\DataSetting\Controllers;
 
 use App\Api\DataSetting\Services\DataSettingService;
 use App\Api\Guest\Services\GuestReasonDictionary;
-use App\Support\Api\Concerns\MapsServiceExceptions;
-use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Http\Controllers\BaseApiController;
 
 // 機器接口標註慣例見 FactoryAuthController 開頭與 DEVELOP.MD 12.9：@api-auth app + @api-scope，
 // 權限由路由上的 factory.scope:xxx 聲明，兩者要一致。
 class FactoryDataSettingController extends BaseApiController
 {
-    use MapsServiceExceptions;
-    use PaginationHelper;
-
     /**
      * @api-method GET
      * @api-path /api/factory/data_setting/index
@@ -26,6 +21,7 @@ class FactoryDataSettingController extends BaseApiController
      * @api-description
      * 訪客機畫面用的選項：依樓層分組的門牌（公司）清單，以及來訪事由清單。
      * 樓層依自然排序（2 排在 10 之前），同一樓層內依公司名稱排序。
+     * 只列出啟用中、且有公司名稱的門牌；一次回傳全部資料，不分頁。
      * @api-no-request-body
      * @api-response-field data.items array 樓層清單
      * @api-response-field data.items[].floor int 樓層
