@@ -202,4 +202,27 @@ return [
         'in_use' => '此證件櫃正在使用中。',
     ],
 
+    'guest_approval' => [
+        'export_title' => '訪客審核紀錄',
+        'export_headers' => [
+            'created_at' => '申請時間',
+            'reservation_id' => '預約單號',
+            'name' => '訪客姓名',
+            'company_name' => '公司名稱',
+            'visit_at' => '來訪時間',
+            'visit_reason' => '來訪事由',
+            'status' => '審核狀態',
+        ],
+        'status' => [
+            0 => '待審核',
+            1 => '修改待審核',
+            10 => '已核准',
+            11 => '修改已核准',
+            20 => '已通知',
+            40 => '已到',
+            50 => '已離場',
+            70 => '已拒絕',
+        ],
+    ],
+
 ];

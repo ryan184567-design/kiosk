@@ -27,11 +27,12 @@ class GuestApprovalController extends BaseApiController
      * @api-tag GuestApproval
      * @api-summary 訪客審核列表
      * @api-description
-     * 查詢已報到（已到、已離場）的訪客記錄，依預約日期與起始時間由新到舊排序。
+     * 查詢待審核、已核准、已拒絕的訪客(預約單)列表，依預約單建立日期由新到舊排序。
      * - `export` 決定輸出類型：0（預設）回傳 JSON 列表；1 下載 Excel（.xlsx）；2 下載 PDF
      * - `export` 為 1 或 2 時直接回傳檔案（不是 JSON），忽略 `page`、`per_page`，匯出符合篩選條件的全部資料，最多 5000 筆
      * - `date_from`／`date_to` 為預約日期區間（含頭尾），兩者皆可單獨使用
-     * - `guest_name`、`company_name` 比對來訪者姓名、公司名稱；`visit_reason` 比對來訪事由；`keyword` 同時比對單號、受訪人、來訪者姓名、公司、手機、車牌（皆為模糊查詢）
+     * - `keyword` 同時比對單號、來訪者姓名、公司（皆為模糊查詢）
+     * - `reservation_status` 審核狀態，今日訪客、本週訪客列表不回傳審核狀態
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
      * @api-portal admin
      * @api-dict guest_record_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
@@ -139,34 +140,34 @@ class GuestApprovalController extends BaseApiController
     /** 列表匯出：1 Excel、2 PDF，欄位與畫面上的清單一致 */
     private function export(int $export, array $applies, TableExporter $exporter, GuestReasonDictionary $reasons)
     {
-        $title = __('api.guest_record.export_title');
-        $headers = array_values(__('api.guest_record.export_headers'));
+        $title = __('api.guest_approval.export_title');
+        $headers = array_values(__('api.guest_approval.export_headers'));
 
         $rows = array_map(function (GuestApply $a) use ($reasons) {
             $first = $a->guests->first();
 
             return [
+                $a->created_at,
                 $a->reservation_id,
-                $this->visitAt($a),
                 $first?->name,
                 $first?->company_name,
+                $this->visitAt($a),
                 $reasons->label($a->visit_reason),
-                $a->doorplate?->company_name,
-                $a->doorplate?->floor,
-                $a->host_name,
-                $a->check_in_at?->format('Y-m-d H:i'),
-                $a->check_out_at?->format('Y-m-d H:i'),
                 $this->statusLabel($a->reservation_status),
             ];
         }, $applies);
 
-        $filename = 'guest_records_'.now()->format('YmdHis').($export === self::EXPORT_EXCEL ? '.xlsx' : '.pdf');
+        $filename = 'guest_approvals_'.now()->format('YmdHis').($export === self::EXPORT_EXCEL ? '.xlsx' : '.pdf');
 
         return $export === self::EXPORT_EXCEL
             ? $exporter->xlsx($title, $headers, $rows, $filename)
             : $exporter->pdf($title, $headers, $rows, $filename);
     }
 
+    private function statusLabel(int $status): string
+    {
+        return __('api.guest_approval.status.'.$status);
+    }
     private function hhmm(?string $time): ?string
     {
         return $time === null ? null : substr($time, 0, 5);

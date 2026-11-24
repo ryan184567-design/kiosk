@@ -120,7 +120,7 @@ class DataSettingController extends BaseApiController
      * @api-request-field company_name string 公司名稱
      * @api-request-field status int 使用狀態
      * @api-request-example
-     * {"id": 1, "doorplate": 132, "floor": 2, "household": 3, "company_name":"有限公司" }
+     * {"id": 1, "doorplate": 132, "floor": 2, "household": 3, "company_name":"有限公司", "status": 1 }
      * @api-response-field data.id int 門牌ID
      * @api-response-field data.doorplate int 門牌號碼
      * @api-response-field data.floor int 樓層

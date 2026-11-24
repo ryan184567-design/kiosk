@@ -4,7 +4,6 @@ namespace App\Api\Guest\Services;
 
 use App\Api\Guest\Models\GuestApply;
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use RuntimeException;
 
 class GuestApprovalService
 {
@@ -19,7 +18,7 @@ class GuestApprovalService
         ?string $keyword = null) :Builder
     {
         $query = GuestApply::query()
-            ->with(['guests', 'doorplate:id,company_name'])
+            ->with(['guests', 'doorplate:id,company_name,floor'])
             ->orderByDesc('created_at');
 
 
