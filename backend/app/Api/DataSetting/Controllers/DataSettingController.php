@@ -92,14 +92,14 @@ class DataSettingController extends BaseApiController
             'doorplate' => 'required|int|max:1000',
 	        'floor'	=> 'required|int|max:100',
 	        'household' => 'required|int|max:10',
-            'company_name'=> 'string|max:255'
+            'company_name'=> 'nullable|string|max:255'
         ]);
 
         $doorplate = $dataSetting->addDoorplate(
             $data['doorplate'],
             $data['floor'],
             $data['household'],
-            $data['company_name']
+            $data['company_name'] ?? ''
         );
 
         return $this->success($this->presentDoorplate($doorplate), 201);

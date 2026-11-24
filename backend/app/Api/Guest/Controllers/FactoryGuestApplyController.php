@@ -41,7 +41,7 @@ class FactoryGuestApplyController extends BaseApiController
      * 訪客機以速通碼查詢「今天、已通知」的預約單，只回傳訪客機需要的欄位。
      * 查無資料（速通碼錯誤、非今天、狀態不符、已取消）回 404。
      * 查詢參數（query string）：`fast_pass_code`（必填，速通碼），例如 `GET /api/factory/guest/applies?fast_pass_code=12345678`。
-     * @api-query-field fast_pass_code int 速通碼
+     * @api-query-field fast_pass_code string 速通碼
      * @api-response-field data.id int 預約單ID
      * @api-response-field data.reservation_id string 預約單號
      * @api-response-field data.host_name string 受訪人
@@ -56,7 +56,7 @@ class FactoryGuestApplyController extends BaseApiController
     public function index(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'fast_pass_code' => 'required|string|max:20',
+            'fast_pass_code' => 'required|string|20',
         ]);
 
         try {
@@ -95,7 +95,7 @@ class FactoryGuestApplyController extends BaseApiController
     public function create(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'doorplate_id' => ['required', 'integer', 'exists:site_current.doorplates,id'],
+            'doorplate_id' => ['required', 'int', 'exists:site_current.doorplates,id'],
             'visit_reason' => ['required', 'int', 'max:100'],
             'visitor' => ['required', 'array', 'min:1', 'max:10'],
             'visitor.*.name' => ['required', 'string', 'max:100'],
@@ -164,8 +164,8 @@ class FactoryGuestApplyController extends BaseApiController
     public function done(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'id' => 'required|int|max:10',
-            'slot' => 'required|int|max:10',
+            'id' => 'required|int',
+            'slot' => 'required|int',
             'consent_form' => 'required|int|max:1',
         ]);
 
@@ -193,14 +193,14 @@ class FactoryGuestApplyController extends BaseApiController
      * @api-description
      * 訪客在訪客機辦離場，使用門禁卡號比對已到的預約單，並將門禁卡號、速通碼、證件櫃清除
      * 查無資料（預約單查詢不到，證件櫃查詢不到）回 404。
-     * @api-request-field card_no int 門禁卡號
+     * @api-request-field card_no string 門禁卡號
      * @api-request-example {"card_no": 2548932547}
      * @api-response-empty
      */
     public function leave(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, [
-            'card_no' => 'required|int|max:20',
+            'card_no' => 'required|string|max:20',
         ]);
 
         try {

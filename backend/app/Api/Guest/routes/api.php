@@ -12,7 +12,7 @@ use App\Api\Guest\Controllers\GuestDashboardReportController;
 
 
 Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function () {
-
+    // 預約管理
     Route::prefix('applies')->group(function () {
         Route::middleware('permission.api:api.guest.index')->get('/', [GuestApplyController::class, 'index']);
         Route::middleware('permission.api:api.guest.show')->get('/{id}', [GuestApplyController::class, 'show'])->whereNumber('id');
@@ -23,6 +23,7 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.destroy')->delete('/{id}', [GuestApplyController::class, 'destroy'])->whereNumber('id');
     });
 
+    // 訪客審核
     Route::prefix('approvals')->group(function () {
         Route::middleware('permission.api:api.guest.approval')->get('/', [GuestApprovalController::class, 'approval']);
         Route::middleware('permission.api:api.guest.approvalStatus')->get('/data', [GuestApprovalController::class, 'approvalStatus']);
@@ -51,6 +52,7 @@ Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function
         Route::middleware('permission.api:api.guest.dashboardSettingTest')->post('/test', [GuestDashboardReportController::class, 'dashboardSettingTest']);
     });
 
+    // 證件櫃管理
     Route::prefix('slots')->group(function () {
         Route::middleware('permission.api:api.guest.slotIndex')->get('/', [GuestSlotController::class, 'slotIndex']);
         Route::middleware('permission.api:api.guest.slotStore')->post('/', [GuestSlotController::class, 'slotStore']);
