@@ -66,7 +66,7 @@ class GuestApplyController extends BaseApiController
             'keyword' => 'nullable|string|max:100',
             'date_from' => 'nullable|date_format:Y-m-d',
             'date_to' => 'nullable|date_format:Y-m-d|after_or_equal:date_from',
-            'reservation_status' => 'nullable|int|in:0,1,10,11,20,30,40,50,60',
+            'reservation_status' => 'nullable|int|in:0,1,10,11,20,30,40,50,60,70',
             'page' => 'nullable|int|min:1',
             'per_page' => 'nullable|int|min:-1|max:200',
         ]);
@@ -182,6 +182,7 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.reservation_type dict:guest_apply_reservation_type 預約類型
      * @api-response-field data.reservation_status dict:guest_apply_reservation_status 預約單狀態
      * @api-response-field data.host_company_name string 受訪公司名稱，門牌不存在時為 null
+     * @api-response-field data.doorplate_id int 門牌ID
      * @api-response-field data.host_floor string 受訪公司所在樓層，門牌不存在時為 null
      * @api-response-field data.host_name string 受訪人
      * @api-response-field data.visit_date string 預約日期 YYYY-MM-DD
@@ -385,6 +386,7 @@ class GuestApplyController extends BaseApiController
             'reservation_type' => $apply->reservation_type,
             'reservation_status' => $apply->reservation_status,
             'host_company_name' => $apply->doorplate?->company_name,
+            'doorplate_id' => $apply->doorplate_id,
             'host_floor' => $apply->doorplate?->floor,
             'host_name' => $apply->host_name,
             'visit_date' => $apply->visit_date?->format('Y-m-d'),
