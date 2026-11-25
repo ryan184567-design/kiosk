@@ -14,12 +14,16 @@ use App\Api\Menu\Models\Menu;
 use App\Api\SystemConfig\Models\SystemConfig;
 use App\Api\User\Models\User;
 use App\Hq\Site\Models\Site;
+use App\Support\Hq\HqPresence;
 use App\Support\Identity\Models\IdentityType;
 use App\Support\Menu\MenuCacheVersion;
 use App\Support\Module\ModuleRegistryService;
 use App\Support\Portal\Models\Portal;
+use App\Support\Site\SiteDatabaseConfig;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
 // 子站 baseline seed（必要初始資料，見 README 13 節），由 site:create（6.3）
@@ -36,10 +40,21 @@ class SiteBaselineSeeder extends Seeder
 
     public function run(): void
     {
+        // 單站模式沒有 EnsureSiteContext 中介層（CLI 不經過 HTTP），site_current 仍是
+        // 佔位假主機（site-context-not-resolved.invalid），必須先套上 .env 的實際連線，
+        // 與 SiteResolver／其他 CLI 指令一致（SiteDatabaseConfig::singleSiteConnection）。
+        if (! config('multisite.enabled')) {
+            Config::set('database.connections.site_current', SiteDatabaseConfig::singleSiteConnection());
+            DB::purge('site_current');
+        }
+
         // 模組登記清單改由掃描 app/Api/*/module.json 產生，見 README 6.9、
         // App\Support\Module\ModuleRegistryService——不再靠這裡寫死一份
         // 清單，新增模組只需要補一份 module.json，不用回頭改這個 seeder。
-        app(ModuleRegistryService::class)->syncToDatabase();
+        // 單站部署包沒有 app/Hq／modules 主表（見 HqPresence），只在含主站時同步。
+        if (HqPresence::available()) {
+            app(ModuleRegistryService::class)->syncToDatabase();
+        }
 
         $superAdminType = IdentityType::query()->updateOrCreate(
             ['code' => 'super_admin'],
@@ -148,6 +163,20 @@ class SiteBaselineSeeder extends Seeder
         // 時，選單由 SiteModuleController::enable() 即時補註冊，不需要
         // 重跑這支 seeder。
         $registry = app(ModuleRegistryService::class);
+
+        if (! HqPresence::available()) {
+            // 單站部署包：已開通模塊清單讀匯出時固化的 storage/app/site_modules.php。
+            $path = storage_path('app/site_modules.php');
+
+            if (! is_file($path)) {
+                throw new RuntimeException("找不到單站模塊開通清單：{$path}");
+            }
+
+            $registry->provisionMenusForSite($registry->dependencyClosure((array) require $path));
+
+            return;
+        }
+
         $site = Site::query()->where('code', $this->currentSiteCode())->first();
 
         if ($site) {
@@ -410,7 +439,9 @@ class SiteBaselineSeeder extends Seeder
     // 資料庫）是兩條獨立連線，可以同時查、不受目前連線切換影響。
     private function bumpMenuCache(): void
     {
-        $siteId = Site::query()->where('code', $this->currentSiteCode())->value('site_id');
+        $siteId = HqPresence::available()
+            ? Site::query()->where('code', $this->currentSiteCode())->value('site_id')
+            : config('multisite.single_site.site_id');
 
         if ($siteId) {
             (new MenuCacheVersion)->bump((int) $siteId);

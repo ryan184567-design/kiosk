@@ -49,11 +49,21 @@ class SitePackageService
         'public',
         'resources/views',
         'resources/vue_src',
+        // 子站後台原始碼：admin:build 需要。主站後台 vue_src_hq 與
+        // vite.hq.config.js 刻意不帶（單站部署包不含站點管理）。
+        'resources/vue_src_admin',
         'resources/css',
         'resources/js',
         'artisan',
         'composer.json',
         'composer.lock',
+        // 前端建置需要：現場 npm ci 後才能 admin:build／vue:build。
+        // package.json 內的 hq:* scripts 會留著但無對應原始碼，不影響其他 script。
+        'package.json',
+        'package-lock.json',
+        'vite.config.js',
+        'vite.vue.config.js',
+        'vite.admin.config.js',
         // 附上完整的環境變數範本：匯出時產生的 .env 就是從它改寫而來，
         // 現場工程師也能從它看出有哪些可調整的設定（原本只給五行 .env.package
         // 提示，結果是現場得自己拼一份殘缺的 .env，缺 APP_KEY 直接起不來）。

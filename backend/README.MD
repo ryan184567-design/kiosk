@@ -338,7 +338,7 @@ php artisan vue:build --all-sites                    # 重建所有 dedicated �
 - 後台（admin）全站共用：客戶差異靠**模塊開通、選單、角色權限、系統設定**；要讓某客戶多一個後台頁面，做成模塊只對他開通。
 - Blade 覆寫：同名檔放 `resources/views/sites/{code}/{module}/`；後端客製：`app/Sites/{SiteCode}/`；專屬 migration：`database/sites/{code}/migrations`（`site:migrate` 自動疊加）。
 
-> ⚠ **尚未實作**：Tier 2 動態頁（`custom_routes` 目前固定回空陣列）、Tier 3 的「共用主體＋overrides 疊加」（`--site` 目前只換輸出目錄）、`vue:build --output=`（`DEPLOY.md` 有提到但指令沒有）。做某站前台客製化前先補實作並寫回文件，詳見 DEVELOP.MD 21.2、21.3。
+> ⚠ **尚未實作**：Tier 2 動態頁（`custom_routes` 目前固定回空陣列）、Tier 3 的「共用主體＋overrides 疊加」（`--site` 目前只換輸出目錄）。（`vue:build --output=` 已實作，單站部署包用。）做某站前台客製化前先補實作並寫回文件，詳見 DEVELOP.MD 21.2、21.3。
 
 ### 6.3 部署
 
