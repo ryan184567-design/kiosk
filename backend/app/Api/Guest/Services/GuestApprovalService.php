@@ -50,7 +50,7 @@ class GuestApprovalService
             } else if ($status == 1) {
                 $query->whereIn('reservation_status', [10, 11]);
             } else {
-                $query->whereIn('reservation_status', (int) $status);
+                $query->where('reservation_status', (int) $status);
             }
         }
 
