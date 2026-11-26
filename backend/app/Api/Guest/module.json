@@ -71,6 +71,17 @@
             "permission_code": "api.guest.slotIndex",
             "group": "group-guest",
             "sort": 5
+        },
+        {
+            "portal": "admin",
+            "key": "upload",
+            "title": "上傳設定",
+            "subtitle": "訪客紀錄上傳設定",
+            "icon": "Menu",
+            "path": "/guest/upload",
+            "permission_code": "api.guest.dashboardSettingUpdate",
+            "group": "group-guest",
+            "sort": 6
         }
     ]
 }
