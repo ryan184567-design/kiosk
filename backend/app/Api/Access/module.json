@@ -1,0 +1,65 @@
+{
+    "code": "access",
+    "name": "門禁管理",
+    "description": "門禁管理",
+    "is_core": false,
+    "sort": 98,
+    "depends": [],
+    "menus": [
+        {
+            "portal": "admin",
+            "key": "organize",
+            "title": "組織列表",
+            "subtitle": null,
+            "icon": "Menu",
+            "path": "/access/organize",
+            "permission_code": "api.access.index",
+            "group": "group-access",
+            "sort": 0
+        },
+        {
+            "portal": "admin",
+            "key": "passtime",
+            "title": "通行時段列表",
+            "subtitle": null,
+            "icon": "Menu",
+            "path": "/access/passtime",
+            "permission_code": "api.access.passtime",
+            "group": "group-access",
+            "sort": 1
+        },
+        {
+            "portal": "admin",
+            "key": "accessfloor",
+            "title": "訪客樓層權限設定",
+            "subtitle": null,
+            "icon": "Menu",
+            "path": "/access/floor",
+            "permission_code": "api.access.floor",
+            "group": "group-access",
+            "sort": 2
+        },
+        {
+            "portal": "admin",
+            "key": "accesscard",
+            "title": "訪客卡號設定",
+            "subtitle": null,
+            "icon": "Menu",
+            "path": "/access/card",
+            "permission_code": "api.access.accesscard",
+            "group": "group-access",
+            "sort": 3
+        },
+        {
+            "portal": "admin",
+            "key": "accessapi",
+            "title": "門禁API設定",
+            "subtitle": null,
+            "icon": "Menu",
+            "path": "/access/api",
+            "permission_code": "api.access.accessapi",
+            "group": "group-access",
+            "sort": 4
+        }
+    ]
+}

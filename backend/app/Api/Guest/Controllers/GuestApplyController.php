@@ -9,7 +9,7 @@ use App\Api\Guest\Services\GuestReasonDictionary;
 use Illuminate\Http\Request;
 
 use App\Api\Guest\Models\Guest;
-use App\Api\Guest\Models\GuestApply;
+use App\Api\Guest\Models\GuestApply
 
 class GuestApplyController extends BaseApiController
 {

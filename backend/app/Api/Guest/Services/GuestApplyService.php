@@ -6,6 +6,9 @@ namespace App\Api\Guest\Services;
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 use App\Api\Guest\Models\GuestSlot;
+
+use App\Api\Access\Models\AccessCard;
+
 use App\Support\Dashboard\DashboardReporter;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -292,12 +295,19 @@ class GuestApplyService
                 'status' => GuestSlot::STATUS_USED,
             ]);
 
+            $card = AccessCard::query()->where('status', 0)->first();
+
             $apply->update([
                 'id_card_slot_no' => $cardSlot->name,
                 'consent_form' => $consentForm,
                 'reservation_status' => GuestApply::STATUS_CHECKED_IN,
                 'check_in_at' => now(),
-                // 門禁卡號之後確認：先不寫入，保持 null，避免假值混進查詢欄位
+                'access_card_no' => $card->card_number,
+            ]);
+
+            $card->update([
+                'reserve_date' => date('Y-m-d'),
+                'status' => 1,
             ]);
 
             return $apply;
