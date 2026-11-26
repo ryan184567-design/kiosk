@@ -175,7 +175,7 @@ composer audit; npm audit                                        # 依賴漏洞�
 | 公版 migration | `site:migrate --all` |
 | `SiteBaselineSeeder`（端口、選單分組、設定項、字典） | `site:migrate --all --seed=Database\Seeders\SiteBaselineSeeder` |
 | `.env`／`config/*.php` | `optimize:clear` |
-| 後台前端／子站前台 | `npm run admin:build`／`php artisan vue:build --clean` |
+| 子站後台／子站前台（`vue_src_admin`／`vue_src`） | `php artisan vue:build --clean`（兩套一起建）；只改後台可單跑 `npm run admin:build` |
 | composer／npm 套件 | `composer install`／`npm install`，lock 檔一併提交 |
 
 > ⚠ seeder **不會自動套用到既有子站**，重跑會覆蓋後台手改過的同一列（如選單標題）。
@@ -310,35 +310,40 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 
 | 套 | 原始碼 | 開發 | 建置 | 輸出（不進版控） |
 | --- | --- | --- | --- | --- |
-| 子站前台（可客製化） | `resources/vue_src` | `npm run vue:dev` | `php artisan vue:build` | `public/vue`、`public/vue-sites/{code}` |
-| 子站後台（admin，全站共用） | `resources/vue_src_admin` | `npm run admin:dev` | `npm run admin:build` | `public/admin-assets` |
+| 子站前台（可客製化） | `resources/vue_src` | `npm run vue:dev` | `php artisan vue:build`（預設連同子站後台） | `public/vue`、`public/vue-sites/{code}` |
+| 子站後台（admin，全站共用） | `resources/vue_src_admin` | `npm run admin:dev` | `npm run admin:build`，或隨 `php artisan vue:build` 一併建置 | `public/admin-assets` |
 | 主站後台（hq） | `resources/vue_src_hq` | `npm run hq:dev` | `npm run hq:build` | `public/hq-assets` |
 | Blade 資產 | `resources/css`、`resources/js` | `npm run dev` | `npm run build` | `public/build` |
 
 改哪套就重建哪套；新環境與每次部署都要重建。
 
-### 6.2 子站前台客製化三層
+> `php artisan vue:build`（含 `--site=`、`--all-sites`）**預設會一併建置子站後台**（`admin:build`），不需要時加 `--no-admin`。只跑 `npm run vue:build` 不會建後台，`resources/vue_src_admin` 的改動（例如訪客管理頁）不會生效。
 
-| 層級 | 何時用 | 建置 | `vue_build_mode` |
-| --- | --- | --- | --- |
-| Tier 1 純公版 | 前台沒差異 | `vue:build` | `shared` |
-| Tier 2 共用建置＋動態頁 | 只多幾個頁面 | `vue:build` | `shared` |
-| Tier 3 獨立建置 | 整組頁面不同，或要現場單站部署 | `vue:build --site={code}` | `dedicated` |
+### 6.2 子站前台：共用還是獨立
+
+每個子站的前台只有兩種情況，由該站的 `vue_build_mode` 決定：
+
+| 情況 | 什麼時候用 | `vue_build_mode` | 建置指令 | 網站讀哪一份 |
+| --- | --- | --- | --- | --- |
+| **共用前台**（預設） | 跟公版一樣，或只多幾個自己的頁面 | `shared` | `vue:build` | `public/vue`（所有共用站同一份） |
+| **獨立前台** | 整組頁面都不一樣，或要拿去客戶現場單獨部署 | `dedicated` | `vue:build --site={code}` | `public/vue-sites/{code}`（這個站自己一份） |
+
+絕大多數站都是共用前台。改了共用前台，所有共用站會同時生效；獨立前台的站則要另外重建才會吃到。
 
 ```powershell
-php artisan vue:page:make vendor_a order-dashboard   # 產生 site-overrides/vendor_a/pages/OrderDashboard.vue
-php artisan vue:build --clean                        # 共用（Tier 1/2）
-php artisan vue:build --site=vendor_a --clean        # Tier 3 → public/vue-sites/vendor_a
-php artisan vue:build --all-sites                    # 重建所有 dedicated 站（CI）
+php artisan vue:page:make vendor_a order-dashboard   # 幫 vendor_a 新增專屬頁面 → site-overrides/vendor_a/pages/OrderDashboard.vue
+php artisan vue:build --clean                        # 共用前台＋子站後台
+php artisan vue:build --site=vendor_a --clean        # vendor_a 的獨立前台 → public/vue-sites/vendor_a＋子站後台（若該站是共用前台，自動改建 public/vue）
+php artisan vue:build --all-sites                    # 共用前台＋所有獨立前台站＋子站後台（CI）
 ```
 
 - 客製化只放 `resources/vue_src/src/site-overrides/{site_code}/`；**不要在共用頁面寫 `if (siteCode === ...)`**。
-- 升 Tier 3 要把該站 `vue_build_mode` 改為 `dedicated`（主站 `sites` 表＋`storage/app/sites/{id}.php`），否則仍回傳共用建置。
+- 要把某站改成獨立前台：該站 `vue_build_mode` 改為 `dedicated`（主站 `sites` 表＋`storage/app/sites/{id}.php` 兩處都要改），否則網站仍讀共用的 `public/vue`。
 - 只改樣式／文案／Logo／主題色 → 用後台「系統設定」，不需客製化。
 - 後台（admin）全站共用：客戶差異靠**模塊開通、選單、角色權限、系統設定**；要讓某客戶多一個後台頁面，做成模塊只對他開通。
 - Blade 覆寫：同名檔放 `resources/views/sites/{code}/{module}/`；後端客製：`app/Sites/{SiteCode}/`；專屬 migration：`database/sites/{code}/migrations`（`site:migrate` 自動疊加）。
 
-> ⚠ **尚未實作**：Tier 2 動態頁（`custom_routes` 目前固定回空陣列）、Tier 3 的「共用主體＋overrides 疊加」（`--site` 目前只換輸出目錄）。（`vue:build --output=` 已實作，單站部署包用。）做某站前台客製化前先補實作並寫回文件，詳見 DEVELOP.MD 21.2、21.3。
+> ⚠ **尚未實作**：共用前台站的「專屬頁面動態掛載」（`custom_routes` 目前固定回空陣列，頁面做了也掛不上去）、獨立前台的「公版＋該站覆寫檔合併後建置」（`--site` 目前只換輸出目錄，內容其實還是公版）。（`vue:build --output=` 已實作，單站部署包用。）做某站前台客製化前先補實作並寫回文件，詳見 DEVELOP.MD 21.2、21.3。
 
 ### 6.3 部署
 
@@ -348,8 +353,8 @@ composer install --no-dev --optimize-autoloader
 php artisan migrate --force                  # 多站模式：主站庫
 php artisan site:migrate --all
 npm ci
-npm run hq:build; npm run admin:build; npm run vue:build
-php artisan vue:build --all-sites            # 有 Tier 3 站才需要
+npm run hq:build
+php artisan vue:build --all-sites            # 子站前台（共用＋所有獨立前台站）＋子站後台 admin
 npm run build                                # 有用 @vite 的 Blade 頁才需要
 php artisan config:cache; php artisan route:cache; php artisan view:cache
 ```
