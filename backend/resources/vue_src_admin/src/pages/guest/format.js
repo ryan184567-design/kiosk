@@ -53,3 +53,18 @@ export function formatVisitSlot(row){
   const day = formatDate(row.visit_date).slice(5);
   return `${day} ${row.visit_start_time} – ${row.visit_end_time}`;
 }
+// 多久以前（通知清單用）：'剛剛'、'5 分鐘前'、'3 小時前'、'2 天前'，7 天以上改顯示日期 '11/08'。
+// value 是本地時間的 'YYYY-MM-DD HH:mm:ss'（列表的申請時間已由 guestAdapter.normalizeDateTime 轉好）；讀不懂就回空字串。
+export function formatTimeAgo(value, now = new Date()){
+  if(!value) return '';
+  const time = new Date(String(value).replace(' ', 'T'));
+  if(Number.isNaN(time.getTime())) return '';
+  const minutes = Math.floor((now - time) / 60000);
+  if(minutes < 1) return '剛剛';
+  if(minutes < 60) return `${minutes} 分鐘前`;
+  const hours = Math.floor(minutes / 60);
+  if(hours < 24) return `${hours} 小時前`;
+  const days = Math.floor(hours / 24);
+  if(days < 7) return `${days} 天前`;
+  return formatDate(value).slice(5);
+}

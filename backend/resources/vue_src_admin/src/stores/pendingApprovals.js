@@ -23,6 +23,10 @@ export async function refreshPendingApprovals(){
     refreshing = false;
   }
 }
+// 別處剛查到最新的筆數（例如打開鈴鐺面板時），直接更新，數字才不會和面板上的「共 N 筆」對不起來。
+export function setPendingApprovals(count){
+  pendingApprovals.value = count;
+}
 function handleVisibilityChange(){
   if (!document.hidden) refreshPendingApprovals();
 }

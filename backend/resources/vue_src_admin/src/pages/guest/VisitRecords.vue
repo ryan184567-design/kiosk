@@ -109,7 +109,7 @@
               <el-button link type="primary" aria-label="查看詳細資料" @click="currentId = row.id">
                 <i class="fa-regular fa-eye" aria-hidden="true"></i>
               </el-button>
-              <el-button link type="primary" aria-label="列印訪客單" @click="handlePrint">
+              <el-button link type="primary" aria-label="列印訪客單" title="列印訪客單" :loading="printingId === row.id" @click.stop="handlePrint(row)">
                 <i class="fa-regular fa-file-lines" aria-hidden="true"></i>
               </el-button>
             </template>
@@ -126,8 +126,9 @@
           <el-pagination v-model:current-page="page" :page-size="perPage" :total="total" layout="prev, pager, next" background @current-change="loadList" />
         </div>
       </section>
-      <RecordDetail :row="detailRow" @close="currentId = null" @print="handlePrint" @edit="handleEdit" />
+      <RecordDetail :row="detailRow" @close="currentId = null" @print="handlePrint(currentRow)" @edit="handleEdit" />
     </div>
+    <VisitorSlips :record="printRecord" @done="printRecord = null" />
   </div>
 </template>
 <script setup>
@@ -143,8 +144,9 @@ import { exportVisitRecords, fetchVisitRecordDetail, fetchVisitRecords, fetchVis
 import LoadErrorAlert from './components/LoadErrorAlert.vue';
 import RecordDetail from './components/RecordDetail.vue';
 import StatCard from './components/StatCard.vue';
+import VisitorSlips from './components/VisitorSlips.vue';
 import { RECORD_STATUS } from './constants';
-import { saveBlob } from './download';
+import { confirmExportLimit, saveBlob } from './download';
 import { formatClock, formatDate, monthRange, mondayWeekRange, todayString } from './format';
 import { useVisitReasons } from './useVisitReasons';
 const { reasonLabel, reasonOptions } = useVisitReasons();
@@ -179,7 +181,7 @@ const exporting = ref('');
 const loading = ref(false);
 const loadError = ref('');
 const summary = reactive({ today: 0, week: 0, month: 0, completed: 0, today_trend: null, week_trend: null, month_trend: null });
-// 目前套用的日期區間剛好是今天／本週／本月時，對應的卡片顯示為選取（看已套用的條件，不看草稿）。
+// 目前套用的日期區間剛好是今天／本週／本月時，對應的卡片顯示為選取(看已套用的條件，不看草稿)。
 const quickRange = computed(() => {
   const [from, to] = applied.range || [];
   return Object.keys(QUICK_RANGES).find((key) => {
@@ -188,7 +190,7 @@ const quickRange = computed(() => {
   }) || null;
 });
 const currentRow = computed(() => rows.value.find((r) => r.id === currentId.value) || null);
-// 右側面板：先用列表那一筆立刻顯示，詳情（登記時間、備註、車牌、健康聲明）回來後再補上。
+// 右側面板：先用列表那一筆立刻顯示，詳情(登記時間、備註、車牌、健康聲明)回來後再補上。
 const detailRow = computed(() => {
   if (!currentRow.value) return null;
   return detail.value?.id === currentRow.value.id ?{ ...currentRow.value, ...detail.value } : currentRow.value;
@@ -220,7 +222,7 @@ function buildFilterParams(){
     keyword: applied.phone.trim() || applied.plate_number.trim(),
   };
 }
-// 連續換頁、排序時，比較慢的舊回應不能蓋掉新的：只採用最後一次請求的結果（做法同行事曆）。
+// 連續換頁、排序時，比較慢的舊回應不能蓋掉新的：只採用最後一次請求的結果(做法同行事曆)。
 let listSeq = 0;
 async function loadList(){
   const seq = ++listSeq;
@@ -282,8 +284,9 @@ function handleSortChange({ order }){
 function handleCurrentChange(row){
   if (row) currentId.value = row.id;
 }
-// 匯出符合目前篩選條件的全部記錄（後端上限 5000 筆），下載檔案由後端產生。
+// 匯出符合目前篩選條件的全部記錄，下載檔案由後端產生；超過上限會先詢問。
 async function handleExport(kind){
+  if(!(await confirmExportLimit(total.value))) return;
   exporting.value = kind;
   const result = await exportVisitRecords(kind, buildFilterParams());
   exporting.value = '';
@@ -293,10 +296,25 @@ async function handleExport(kind){
   }
   saveBlob(result.data.blob, result.data.filename);
 }
-// 以下兩項後端沒有對應 API。
-function handlePrint(){
-  ElMessage.info('列印訪客單尚未開放：後端還沒有提供列印相關 API');
+// 列印訪客單：用瀏覽器列印(版面見 components/VisitorSlips.vue)。列表那一筆沒有車牌，先抓詳情；每次都重抓，印的是目前的資料。
+const printRecord = ref(null);
+const printingId = ref(null);
+async function handlePrint(row){
+  if(!row || printingId.value !== null) return;
+  printingId.value = row.id;
+  const result = await fetchVisitRecordDetail(row.id);
+  printingId.value = null;
+  if(!result.ok){
+    ElMessage.error(`無法列印訪客單：${result.message}`);
+    return;
+  }
+  if(!result.data.guests?.length){
+    ElMessage.warning('這筆記錄沒有來訪者資料，無法列印訪客單');
+    return;
+  }
+  printRecord.value = result.data;
 }
+// 編輯訪客記錄：後端沒有對應 API。
 function handleEdit(){
   ElMessage.info('編輯訪客記錄尚未開放：後端還沒有提供修改訪客記錄的 API');
 }

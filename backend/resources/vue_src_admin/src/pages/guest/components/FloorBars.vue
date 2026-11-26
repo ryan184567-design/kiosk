@@ -135,7 +135,17 @@ onMounted(() => {
       },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: (item) => `${item.label}：${valueText(props.items[item.dataIndex])}` } },
+        // 提示框是畫在 canvas 裡的，超出圖表範圍就被切掉；只有 1 層樓時整張圖只有 32px 高，
+        // 原本「標題＋內容」兩行（約 47px）會被切掉一半。改成單行（約 26px）並與長條垂直置中，每一列都放得下：
+        // 不要標題（內容已經有樓層名稱）、不要色塊（只有一種顏色，色塊沒有區分作用）。
+        tooltip: {
+          yAlign: 'center',
+          displayColors: false,
+          callbacks: {
+            title: () => [],
+            label: (item) => `${item.label}：${valueText(props.items[item.dataIndex])}`,
+          },
+        },
       },
     },
     plugins: [barTrack, valueLabels],

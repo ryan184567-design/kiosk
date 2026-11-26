@@ -5,44 +5,11 @@ Date: 2026-11-19
 Description: 訪客管理模塊的 API 呼叫封裝（預約、審核、門牌選項），頁面不直接寫 fetch。
 ***************************************** */
 import { authFetch } from '../stores/auth';
+import { failureMessage, postJson, putJson, request } from './http';
 import { adaptListItem, adaptRecordDetail, adaptReportDay, adaptReportOverview, adaptRecordItem, adaptRecordStats, buildApprovalDateParams, buildListQuery, buildRecordQuery, mergeStatusResults, normalizeStatuses } from './guestAdapter';
 import { registerMock } from './guestMock';
 import { PENDING_STATUSES, REJECTED_STATUS } from '../pages/guest/constants';
 import { todayString, weekRange } from '../pages/guest/format';
-// 統一把後端回應整理成 { ok, data, message }，頁面只要看 ok 與 message：
-// 後端格式為 { status, error_code, data, error_message }，驗證失敗（422）
-// 也是同一種格式，error_message 會帶第一個欄位的中文錯誤，見 bootstrap/app.php。
-// 失敗訊息要依實際原因分開說，才不會讓人往錯的方向查：
-// - 連請求都送不出去（fetch 丟例外）→「無法連線到伺服器」，由呼叫端處理。
-// - 後端有給 error_message（驗證失敗、業務錯誤）→ 直接用它。
-// - 回了 JSON 但沒有 error_message、狀態碼 5xx → Laravel 處理時出錯（伺服器連得到，是後端程式的錯誤）。
-// - 回應不是 JSON 且不成功 → 通常是後端沒在跑（開發時 Vite 代理回 500、內容是空的）或正式環境的閘道錯誤（502／504 網頁）。
-function failureMessage(res, body, action = '操作'){
-  if(body?.error_message)return body.error_message;
-  if(body && res.status >= 500)return `伺服器處理時發生錯誤（HTTP ${res.status}），請稍後再試；持續發生請聯絡系統管理員`;
-  if(!body && !res.ok)return `伺服器沒有正常回應（HTTP ${res.status}），請稍後再試`;
-  return `${action}失敗，請稍後再試`;
-}
-async function request(path, options = {}){
-  let res;
-  try{
-    res = await authFetch(path, options);
-  }catch{
-    return{ ok: false, data: null, message: '無法連線到伺服器，請稍後再試' };
-  }
-  const body = await res.json().catch(() => null);
-  if(body?.status){
-    return{ ok: true, data: body.data, message: '' };
-  }
-  return{ ok: false, data: null, message: failureMessage(res, body) };
-}
-const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json' };
-function postJson(path, payload){
-  return request(path, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(payload) });
-}
-function putJson(path, payload = {}){
-  return request(path, { method: 'PUT', headers: JSON_HEADERS, body: JSON.stringify(payload) });
-}
 // 把查詢參數轉成網址：略過空值，陣列用 key[]=a&key[]=b 的寫法。
 function toQuery(params){
   const search = new URLSearchParams();
@@ -89,6 +56,41 @@ export function deleteReservation(id){
 export function fetchVisitReasonItems(){
   return request('/api/dictionaries/guest_visit_reason/items', { headers: { Accept: 'application/json' } });
 }
+// ── 證件櫃（GuestSlotController，/api/guest/slots）──
+// status：0 未使用、1 使用中。使用狀態平常由訪客機改（報到時占用、離場時釋放），後臺只做建立、修改與人工釋放。
+// GET：全部證件櫃（per_page=-1 不分頁；後端沒有指定排序，由頁面排）。回傳 { items: [{ id, name, reservation_id, remark, status }], total }。
+export function fetchSlots(){
+  return request('/api/guest/slots?per_page=-1', { headers: { Accept: 'application/json' } });
+}
+// POST：新增，payload { name, remark }。成功不回傳資料（拿不到新的 id）。
+export function createSlot(payload){
+  return postJson('/api/guest/slots', payload);
+}
+// PUT：修改，payload { name, remark, status, reservation_id }。四個都要帶：沒帶 reservation_id 後端會把它清成空的。
+export function updateSlot(id, payload){
+  return putJson(`/api/guest/slots/${id}`, payload);
+}
+// DELETE：刪除（軟刪除）。後端說明寫「使用中會拒絕」，但程式沒有檢查，要由頁面把關。
+export function deleteSlot(id){
+  return request(`/api/guest/slots/${id}`, { method: 'DELETE', headers: { Accept: 'application/json' } });
+}
+// ── 上傳設定（GuestDashboardReportController：把訪客資料上報到指定的儀錶板網址）──
+// GET：目前設定（第一次讀取時後端自動建立預設值）。簽名值不回明文，只有 auth_items[].value_masked。
+export function fetchUploadSettings(){
+  return request('/api/guest/dashboard-settings', { headers: { Accept: 'application/json' } });
+}
+// PUT：整份儲存。auth_items 有帶就整串取代；某一組沒帶 value 代表沿用原本「同名稱＋同位置」的值。contents 不能是空陣列。
+export function saveUploadSettings(payload){
+  return putJson('/api/guest/dashboard-settings', payload);
+}
+// 連線測試（送一次心跳）。url 省略＝用已儲存的網址；簽名一律用已儲存的。不論成敗都回 200，看 data.success。
+export function testUploadConnection(url){
+  return postJson('/api/guest/dashboard-settings/test', { url });
+}
+// 上傳紀錄（新到舊，後端分頁）：notify_type、success（1／0）、is_test（1／0）、date_from、date_to、page、per_page。
+export function fetchUploadLogs(params = {}){
+  return request(`/api/guest/dashboard-logs?${toQuery(params)}`, { headers: { Accept: 'application/json' } });
+}
 // 待審核（狀態 0 待審核、1 修改待審核）的總筆數，給預約管理「待審核」頁籤、右上角鈴鐺與側邊欄「訪客審核」的紅色數字用。
 // 用列表 API 各查一次（每頁只要 1 筆，看 total），依序查不併發。後端的 GET /api/guest/approvals/data 也有這個數字，但權限碼不同（api.guest.approvalStatus），能看列表的人不一定有它的權限，所以不改用它。
 export async function fetchPendingCount(){
@@ -116,7 +118,7 @@ const USE_MOCK = {
 export function isMock(name){
   return Boolean(USE_MOCK[name]);
 }
-// 真 API：GET /api/guest/applies。後端一次只能查一個狀態，且選填參數沒帶就會 500，
+// 真 API：GET /api/guest/applies。後端一次只能查一個狀態，
 // 這些細節都收在 guestAdapter.js；這裡只負責呼叫，並把回傳欄位轉成頁面使用的格式。
 // 多個狀態時（例如待審核 0、1）依序分次查詢（不要併發：README 提到本機併發請求偶發 500）再合併。
 // 「已拒絕（70）」後端 2026-11-25 `2e9d019` 起可以直接查，和其他狀態一樣。

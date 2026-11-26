@@ -1,14 +1,14 @@
 <template>
   <div class="rpt">
-    <!-- 報表頁籤(設計稿只有「訪客統計總覽」) -->
+    <!-- 報表頁籤(設計稿只有「訪客統計總覽」；趨勢、事由分析 2026-11-26 依現有 API 自行規劃) -->
     <div class="rpt__tabs" role="group" aria-label="報表類型">
       <button v-for="tab in tabs" :key="tab.key" type="button" class="rpt__tab" :class="{ 'rpt__tab--active': activeTab === tab.key }" :aria-pressed="activeTab === tab.key" @click="activeTab = tab.key">
         <i :class="tab.icon" aria-hidden="true"></i>{{ tab.label }}
       </button>
     </div>
-    <el-empty v-if="activeTab !== 'overview'" class="rpt__empty" description="這個報表尚未提供：設計稿與後端 API 都還沒有" />
+    <el-empty v-if="currentTab.pending" class="rpt__empty" :description="currentTab.pending" />
     <template v-else>
-      <!-- 篩選 -->
+      <!-- 篩選（已完成的報表共用同一組條件） -->
       <section class="rpt__filters">
         <label class="rpt__field">
           <span class="rpt__label">統計期間</span>
@@ -26,7 +26,8 @@
             <el-option v-for="c in companyOptions" :key="c.id" :label="c.label" :value="c.id" />
           </el-select>
         </label>
-        <label class="rpt__field">
+        <!-- 「來訪事由分析」本身就在比較各事由，不篩事由。 -->
+        <label v-if="activeTab !== 'reason'" class="rpt__field">
           <span class="rpt__label">來訪事由</span>
           <el-select v-model="filters.visit_reason" placeholder="全部" clearable class="rpt__select">
             <el-option v-for="r in reasonOptions" :key="r.value" :label="r.label" :value="r.value" />
@@ -36,71 +37,74 @@
           <i class="fa-solid fa-magnifying-glass rpt__icon" aria-hidden="true"></i>查詢
         </el-button>
       </section>
+      <p class="rpt__source">
+        <i class="fa-solid fa-circle-info rpt__icon" aria-hidden="true"></i>統計資料每天凌晨彙整到前一天，不含今天；只計算「已到」與「已離場」的預約。<template v-if="activeTab !== 'overview'">「較上期同期」是跟上期相同天數的比較（本期只到昨天，就只比上期的前幾天）。</template>
+      </p>
       <LoadErrorAlert v-if="optionsError" class="rpt__notice" :message="optionsError" @retry="loadFilterOptions" />
-      <LoadErrorAlert v-if="loadError" class="rpt__notice" :message="loadError" @retry="reload" />
-      <!-- 統計卡片 -->
-      <div class="rpt__stats">
-        <StatCard icon="fa-solid fa-users" label="來訪總人次" :value="fmt(summary.total)" :trend="summary.total_trend" note="較上期" tone="blue" />
-        <StatCard icon="fa-regular fa-calendar-days" label="預約來訪" :value="fmt(summary.reserved)" :trend="summary.reserved_trend" :note="`占 ${share(summary.reserved)}%`" tone="blue" />
-        <StatCard icon="fa-solid fa-person-walking" label="臨時來訪" :value="fmt(summary.walk_in)" :trend="summary.walk_in_trend" :note="`占 ${share(summary.walk_in)}%`" tone="blue" />
-        <StatCard icon="fa-regular fa-building" label="來訪公司數" :value="fmt(summary.companies)" :trend="summary.companies_trend" note="較上期" tone="blue" />
-        <StatCard icon="fa-regular fa-id-card" label="發證數(臨時卡)" :value="fmt(summary.badges)" :trend="summary.badges_trend" note="較上期" tone="blue" />
-      </div>
-      <!-- 圖表 -->
-      <div v-loading="loadingOverview" class="rpt__charts">
-        <section class="rpt__card rpt__card--trend">
-          <h3 class="rpt__title">每日來訪人次趨勢</h3>
-          <TrendChart :points="trend" />
-        </section>
-        <section class="rpt__card">
-          <h3 class="rpt__title">來訪事由分布</h3>
-          <ReasonDonut :items="reasons" />
-        </section>
-        <section class="rpt__card">
-          <h3 class="rpt__title">樓層來訪分布 (Top 5)</h3>
-          <FloorBars :items="floors" :total="summary.total" />
-        </section>
-      </div>
-      <!-- 明細 -->
-      <section class="rpt__card rpt__detail">
-        <div class="rpt__detail-head">
-          <h3 class="rpt__title">訪客統計明細</h3>
-          <div class="rpt__actions">
-            <el-button :loading="exporting === 'excel'" @click="handleExport('excel')">
-              <i class="fa-regular fa-file-excel rpt__icon rpt__icon--green" aria-hidden="true"></i>匯出 Excel
-            </el-button>
-            <el-button :loading="exporting === 'pdf'" @click="handleExport('pdf')">
-              <i class="fa-regular fa-file-pdf rpt__icon rpt__icon--red" aria-hidden="true"></i>匯出 PDF
-            </el-button>
-            <el-button @click="handlePrint">
-              <i class="fa-solid fa-print rpt__icon" aria-hidden="true"></i>列印
-            </el-button>
-          </div>
+      <TrendAnalysis v-if="activeTab === 'trend'" :params="reportParams" :version="queryVersion" />
+      <ReasonAnalysis v-else-if="activeTab === 'reason'" :params="reportParams" :version="queryVersion" />
+      <template v-else>
+        <LoadErrorAlert v-if="loadError" class="rpt__notice" :message="loadError" @retry="reload" />
+        <!-- 統計卡片 -->
+        <div class="rpt__stats">
+          <StatCard icon="fa-solid fa-users" label="來訪總人次" :value="fmt(summary.total)" :trend="summary.total_trend" note="較上期" tone="blue" />
+          <StatCard icon="fa-regular fa-calendar-days" label="預約來訪" :value="fmt(summary.reserved)" :trend="summary.reserved_trend" :note="`占 ${share(summary.reserved)}%`" tone="blue" />
+          <StatCard icon="fa-solid fa-person-walking" label="臨時來訪" :value="fmt(summary.walk_in)" :trend="summary.walk_in_trend" :note="`占 ${share(summary.walk_in)}%`" tone="blue" />
+          <StatCard icon="fa-regular fa-building" label="來訪公司數" :value="fmt(summary.companies)" :trend="summary.companies_trend" note="較上期" tone="blue" />
+          <StatCard icon="fa-regular fa-id-card" label="發證數(臨時卡)" :value="fmt(summary.badges)" :trend="summary.badges_trend" note="較上期" tone="blue" />
         </div>
-        <el-table v-loading="loadingDaily" :data="daily" empty-text="沒有資料">
-          <el-table-column label="日期" min-width="150">
-            <template #default="{ row }">{{ formatDateWithWeekday(row.date) }}</template>
-          </el-table-column>
-          <el-table-column prop="total" label="來訪總人次" min-width="110" align="center" />
-          <el-table-column prop="reserved" label="預約人次" min-width="100" align="center" />
-          <el-table-column prop="walk_in" label="臨時人次" min-width="100" align="center" />
-          <el-table-column prop="companies" label="來訪公司數" min-width="110" align="center" />
-          <el-table-column prop="top_reason" label="最主要來訪事由" min-width="140" />
-          <el-table-column label="備註" min-width="90" align="center">
-            <template #default="{ row }">{{ row.remark || '—' }}</template>
-          </el-table-column>
-        </el-table>
-        <div class="rpt__pager">
-          <span class="rpt__pager-info">共 {{ dailyTotal }} 筆資料</span>
-          <div class="rpt__pager-right">
-            <span>每頁顯示</span>
-            <el-select v-model="perPage" class="rpt__size" @change="handlePerPageChange">
-              <el-option v-for="n in [10, 20, 50]" :key="n" :label="n" :value="n" />
-            </el-select>
-            <el-pagination v-model:current-page="page" :page-size="perPage" :total="dailyTotal" layout="prev, pager, next" background @current-change="loadDaily" />
-          </div>
+        <!-- 圖表 -->
+        <div v-loading="loadingOverview" class="rpt__charts">
+          <section class="rpt__card rpt__card--trend">
+            <h3 class="rpt__title">每日來訪人次趨勢</h3>
+            <TrendChart :points="trend" />
+          </section>
+          <section class="rpt__card">
+            <h3 class="rpt__title">來訪事由分布</h3>
+            <ReasonDonut :items="reasons" />
+          </section>
+          <section class="rpt__card">
+            <h3 class="rpt__title">樓層來訪分布 (Top 5)</h3>
+            <FloorBars :items="floors" :total="summary.total" />
+          </section>
         </div>
-      </section>
+        <!-- 明細 -->
+        <section class="rpt__card rpt__detail">
+          <div class="rpt__detail-head">
+            <h3 class="rpt__title">訪客統計明細</h3>
+            <div class="rpt__actions">
+              <el-button :loading="exporting === 'excel'" @click="handleExport('excel')">
+                <i class="fa-regular fa-file-excel rpt__icon rpt__icon--green" aria-hidden="true"></i>匯出 Excel
+              </el-button>
+              <el-button :loading="exporting === 'pdf'" @click="handleExport('pdf')">
+                <i class="fa-regular fa-file-pdf rpt__icon rpt__icon--red" aria-hidden="true"></i>匯出 PDF
+              </el-button>            </div>
+          </div>
+          <el-table v-loading="loadingDaily" :data="daily" empty-text="沒有資料">
+            <el-table-column label="日期" min-width="150">
+              <template #default="{ row }">{{ formatDateWithWeekday(row.date) }}</template>
+            </el-table-column>
+            <el-table-column prop="total" label="來訪總人次" min-width="110" align="center" />
+            <el-table-column prop="reserved" label="預約人次" min-width="100" align="center" />
+            <el-table-column prop="walk_in" label="臨時人次" min-width="100" align="center" />
+            <el-table-column prop="companies" label="來訪公司數" min-width="110" align="center" />
+            <el-table-column prop="top_reason" label="最主要來訪事由" min-width="140" />
+            <el-table-column label="備註" min-width="90" align="center">
+              <template #default="{ row }">{{ row.remark || '—' }}</template>
+            </el-table-column>
+          </el-table>
+          <div class="rpt__pager">
+            <span class="rpt__pager-info">共 {{ dailyTotal }} 筆資料</span>
+            <div class="rpt__pager-right">
+              <span>每頁顯示</span>
+              <el-select v-model="perPage" class="rpt__size" @change="handlePerPageChange">
+                <el-option v-for="n in [10, 20, 50]" :key="n" :label="n" :value="n" />
+              </el-select>
+              <el-pagination v-model:current-page="page" :page-size="perPage" :total="dailyTotal" layout="prev, pager, next" background @current-change="loadDaily" />
+            </div>
+          </div>
+        </section>
+      </template>
     </template>
   </div>
 </template>
@@ -109,9 +113,10 @@
 File: StatisticsReport.vue
 Author: Callum
 Date: 2026-11-19
-Description: 統計報表頁(訪客統計總覽：統計卡片、趨勢折線、事由圓環、樓層分布、每日明細)。
+Description: 統計報表頁(訪客統計總覽：統計卡片、趨勢折線、事由圓環、樓層分布、每日明細；
+2026-11-26 起另有「來訪趨勢分析」「來訪事由分析」，見 report/ 資料夾)。
 ***************************************** */
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { exportReportDaily, fetchDoorplates, fetchReportDaily, fetchReportOverview } from '../../api/guest';
 import FloorBars from './components/FloorBars.vue';
@@ -120,17 +125,20 @@ import ReasonDonut from './components/ReasonDonut.vue';
 import StatCard from './components/StatCard.vue';
 import TrendChart from './components/TrendChart.vue';
 import { saveBlob } from './download';
+import ReasonAnalysis from './report/ReasonAnalysis.vue';
+import TrendAnalysis from './report/TrendAnalysis.vue';
 import { useVisitReasons } from './useVisitReasons';
 import { formatDateWithWeekday } from './format';
 const { reasonOptions } = useVisitReasons();
-// 設計稿有六種報表，只有第一種有畫面；其餘先留頁籤，點了顯示「尚未提供」。
+// 設計稿有六種報表，只有第一種有畫面。趨勢、事由分析用現有的統計 API 就能做（2026-11-26 自行規劃畫面）；
+// 其餘還沒做的頁籤用 pending 說明原因，點了顯示這段文字。
 const tabs = [
   { key: 'overview', label: '訪客統計總覽', icon: 'fa-solid fa-chart-column' },
   { key: 'trend', label: '來訪趨勢分析', icon: 'fa-solid fa-chart-line' },
-  { key: 'floor', label: '樓層/公司分析', icon: 'fa-regular fa-building' },
+  { key: 'floor', label: '樓層/公司分析', icon: 'fa-regular fa-building', pending: '樓層/公司分析尚未提供：需要後端提供「全部樓層」與「各公司排行」的統計 API' },
   { key: 'reason', label: '來訪事由分析', icon: 'fa-solid fa-tag' },
-  { key: 'booking', label: '預約統計', icon: 'fa-regular fa-calendar-days' },
-  { key: 'custom', label: '自訂報表', icon: 'fa-solid fa-gear' },
+  { key: 'booking', label: '預約統計', icon: 'fa-regular fa-calendar-days', pending: '預約統計尚未提供' },
+  { key: 'custom', label: '自訂報表', icon: 'fa-solid fa-gear', pending: '自訂報表尚未提供：需要後端支援自選欄位、儲存報表設定與匯出' },
 ];
 const pad = (n) => String(n).padStart(2, '0');
 // 預設統計期間：本月 1 日到本月最後一天。
@@ -141,6 +149,7 @@ function currentMonthRange(){
   return [`${ym}-01`, `${ym}-${pad(last)}`];
 }
 const activeTab = ref('overview');
+const currentTab = computed(() => tabs.find((t) => t.key === activeTab.value) || tabs[0]);
 // 篩選列分成兩份(做法同訪客審核頁)：filters 是畫面上看得到的值(草稿)，按「查詢」才會套用；
 // applied 是目前卡片、圖表、明細實際套用的條件，明細換頁、改每頁筆數、匯出都用 applied，
 // 才不會出現「改了統計期間沒按查詢，換頁或匯出卻用了新期間」，跟上面的卡片、圖表對不上。
@@ -179,6 +188,18 @@ function queryParams(){
     visit_reason: applied.visit_reason,
   };
 }
+// 給「來訪趨勢分析」「來訪事由分析」的條件：只在按「查詢」套用時才換成新的物件；
+// queryVersion 每按一次查詢加 1，條件完全沒變也會重新載入（等同重新整理資料）。
+const reportParams = computed(() => queryParams());
+const queryVersion = ref(0);
+// 在其他頁籤按了查詢，總覽的資料就過期了：切回總覽時再重新載入。
+let overviewStale = false;
+watch(activeTab, (tab) => {
+  if(tab === 'overview' && overviewStale){
+    overviewStale = false;
+    reload();
+  }
+});
 // 連續查詢、換頁時，比較慢的舊回應不能蓋掉新的：只採用最後一次請求的結果(做法同行事曆)。
 let overviewSeq = 0;
 let dailySeq = 0;
@@ -216,11 +237,16 @@ function reload(){
   loadOverview();
   loadDaily();
 }
-// 查詢：套用篩選列目前的條件、明細回到第 1 頁。
+// 查詢：套用篩選列目前的條件、明細回到第 1 頁。總覽只在顯示中才載入；趨勢、事由分析由 queryVersion 觸發各自載入。
 function handleSearch(){
   Object.assign(applied, copyFilters(filters));
   page.value = 1;
-  reload();
+  queryVersion.value += 1;
+  if(activeTab.value === 'overview'){
+    reload();
+  }else{
+    overviewStale = true;
+  }
 }
 function handlePerPageChange(){
   page.value = 1;
@@ -251,10 +277,6 @@ async function handleExport(kind){
     return;
   }
   saveBlob(result.data.blob, result.data.filename);
-}
-// 列印：後端沒有對應 API，等報表列印格式確認後再做。
-function handlePrint(){
-  ElMessage.info('列印尚未開放：等報表列印格式確認後再做');
 }
 onMounted(() => {
   loadFilterOptions();
@@ -328,6 +350,11 @@ onMounted(() => {
 }
 .rpt__icon{
   margin-right: 6px;
+}
+.rpt__source{
+  margin: 0 0 14px;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
 }
 .rpt__icon--green{
   color: #16a34a;

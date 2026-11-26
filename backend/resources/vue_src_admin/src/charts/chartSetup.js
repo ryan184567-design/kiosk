@@ -4,9 +4,15 @@ Author: Callum
 Date: 2026-11-19
 Description: Chart.js 共用設定：只註冊用到的圖表類型（按需引入）、統一字型與動畫。
 ***************************************** */
-import { ArcElement, BarController, BarElement, CategoryScale, Chart, DoughnutController, Filler, LineController, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
-// 只註冊趨勢折線、圓環圖、樓層長條圖用到的元件，其餘不打包進來，檔案才不會膨脹。
-Chart.register(ArcElement, BarController, BarElement, CategoryScale, DoughnutController, Filler, LineController, LineElement, LinearScale, PointElement, Tooltip);
+import { ArcElement, BarController, BarElement, CategoryScale, Chart, DoughnutController, Filler, Legend, LineController, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
+// 只註冊趨勢折線、圓環圖、長條圖用到的元件，其餘不打包進來，檔案才不會膨脹。
+Chart.register(ArcElement, BarController, BarElement, CategoryScale, DoughnutController, Filler, Legend, LineController, LineElement, LinearScale, PointElement, Tooltip);
+// 圖例（2026-11-26 為了多組資料的圖註冊）預設關閉，需要的圖自己打開（plugins.legend.display: true），
+// 原本單一資料的圖（每日趨勢、樓層分布）與自己畫 HTML 圖例的圓環圖都不受影響。
+Chart.defaults.plugins.legend.display = false;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.boxWidth = 8;
+Chart.defaults.plugins.legend.labels.boxHeight = 8;
 const rootStyle = () => getComputedStyle(document.documentElement);
 // canvas 讀不到 CSS 的 inherit，字型要取實際值。
 Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;

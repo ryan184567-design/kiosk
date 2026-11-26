@@ -35,6 +35,12 @@ const routes = [
       { path: 'guest/records', name: 'guest-records', meta: { title: '訪客記錄' }, component: () => import('../pages/guest/VisitRecords.vue') },
       { path: 'guest/reports', name: 'guest-reports', meta: { title: '統計報表' }, component: () => import('../pages/guest/StatisticsReport.vue') },
       { path: 'guest/applies', name: 'guest-applies', meta: { title: '預約管理' }, component: () => import('../pages/guest/ReservationList.vue') },
+      { path: 'guest/slots', name: 'guest-slots', meta: { title: '證件櫃' }, component: () => import('../pages/guest/SlotList.vue') },
+      { path: 'guest/upload', name: 'guest-upload', meta: { title: '上傳設定' }, component: () => import('../pages/guest/UploadSettings.vue') },
+      // 基本資料設定模塊：路徑對應後端 app/Api/DataSetting/module.json 的選單 path。
+      { path: 'data-setting/building', name: 'data-setting-building', meta: { title: '棟別設定' }, component: () => import('../pages/data-setting/BuildingList.vue') },
+      { path: 'data-setting/floor', name: 'data-setting-floor', meta: { title: '樓別設定' }, component: () => import('../pages/data-setting/FloorList.vue') },
+      { path: 'data-setting/doorplate', name: 'data-setting-doorplate', meta: { title: '門牌設定' }, component: () => import('../pages/data-setting/DoorplateList.vue') },
       // 廠商模式（App Token）的 App 管理：全局共用，路徑對應後端 app/Api/Factory/module.json 的選單 path。
       { path: 'factory-apps', name: 'factory-apps', meta: { title: '廠商 App 管理' }, component: () => import('../pages/factory/FactoryAppList.vue') },
       { path: 'factory-logs', name: 'factory-logs', meta: { title: '廠商 App 記錄' }, component: () => import('../pages/factory/FactoryLogList.vue') },

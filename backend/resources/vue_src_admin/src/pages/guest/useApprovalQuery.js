@@ -22,6 +22,8 @@ import { todayString, weekRange } from './format';
 // 4. 換頁、改每頁筆數、切換「申請時間」排序只是看同一批結果，不會套用還沒按查詢的草稿；排序會回到第 1 頁。
 // 5. 卡片是否選取、卡片上的數字，都以「目前列表實際套用的條件」為準，不看草稿；
 //    每張卡片的數字＝現在點它，列表會出現幾筆（由統計 API 依同樣條件計算）。
+// 6. 從別處指定頁籤進來（右上角鈴鐺）：清空篩選列、切到該頁籤、回到第 1 頁重新查詢（resetToTab）；
+//    排序與每頁筆數維持使用者原本的選擇。
 // ─────────────────────────────────────────────────────────────
 export const STATUS_TABS = [
   { key: 'pending', label: '待審核', icon: 'fa-solid fa-hourglass-half', tone: 'navy', status: PENDING_STATUSES },
@@ -76,6 +78,11 @@ export function useApprovalQuery({ reloadAll, reloadList }){
   function toggleStatus(key){
     return selectTab(activeTab.value === key ? 'all' : key);
   }
+  // 規則 6：清空篩選列再切到指定頁籤（不認得的頁籤當作「待審核」）。
+  function resetToTab(key){
+    Object.assign(filters, emptyFilters());
+    return selectTab(STATUS_TABS.some((t) => t.key === key) ? key : 'pending');
+  }
   // 日期卡片：填入或清除來訪日期，不動狀態。
   function toggleQuickRange(key){
     filters.visit_range = quickRange.value === key ? null : QUICK_RANGES[key]();
@@ -122,6 +129,7 @@ export function useApprovalQuery({ reloadAll, reloadList }){
     search: query,
     selectTab,
     toggleStatus,
+    resetToTab,
     toggleQuickRange,
     changePage,
     changePerPage,

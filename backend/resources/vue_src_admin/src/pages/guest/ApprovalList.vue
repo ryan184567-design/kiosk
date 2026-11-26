@@ -62,7 +62,7 @@
           @sort-change="handleSortChange"
         >
           <el-table-column type="selection" width="44" />
-          <!-- 排序由前端處理（sortable="custom"：表格只負責箭頭，實際排序交給 useApprovalQuery），只在新到舊／舊到新之間切換。 -->
+          <!-- 排序由前端處理(sortable="custom"：表格只負責箭頭，實際排序交給 useApprovalQuery)，只在新到舊／舊到新之間切換。 -->
           <el-table-column label="申請時間" prop="created_at" width="120" sortable="custom" :sort-orders="['descending', 'ascending']">
             <template #default="{ row }">
               <div>{{ formatDate(row.created_at) }}</div>
@@ -116,6 +116,7 @@ Date: 2026-11-19
 Description: 訪客審核頁(統計卡片、狀態頁籤、篩選、列表、詳情與核准／拒絕)。
 ***************************************** */
 import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { refreshPendingApprovals } from '../../stores/pendingApprovals';
 import { approveReservation, exportApprovals, fetchApprovalList, fetchApprovalSummary, fetchReservationDetail, rejectReservation } from '../../api/guest';
@@ -123,13 +124,13 @@ import ApprovalDetail from './components/ApprovalDetail.vue';
 import LoadErrorAlert from './components/LoadErrorAlert.vue';
 import StatCard from './components/StatCard.vue';
 import { PENDING_STATUSES, RESERVATION_STATUS } from './constants';
-import { saveBlob } from './download';
+import { confirmExportLimit, saveBlob } from './download';
 import { formatClock, formatDate, formatVisitSlot } from './format';
 import { STATUS_TABS, useApprovalQuery } from './useApprovalQuery';
 import { useVisitReasons } from './useVisitReasons';
 const { reasonLabel } = useVisitReasons();
 const tabs = STATUS_TABS;
-// 卡片、頁籤、篩選列、分頁之間的互動規則都集中在 useApprovalQuery.js（檔案開頭有完整說明）。
+// 卡片、頁籤、篩選列、分頁之間的互動規則都集中在 useApprovalQuery.js(檔案開頭有完整說明)。
 // filters：篩選列上的草稿（keyword、visit_range＝來訪日期、created_range＝申請日期），按查詢／點卡片／點頁籤才會套用。
 const {
   filters,
@@ -140,6 +141,7 @@ const {
   search,
   selectTab,
   toggleStatus,
+  resetToTab,
   toggleQuickRange,
   changePage,
   changePerPage,
@@ -176,15 +178,15 @@ let listSeq = 0;
 async function loadSummary(){
   const seq = ++summarySeq;
   const result = await fetchApprovalSummary(summaryParams());
-  if(seq !== summarySeq) return;
-  if(result.ok) Object.assign(summary, result.data);
+  if(seq !== summarySeq)return;
+  if(result.ok)Object.assign(summary, result.data);
 }
 async function loadList(){
   const seq = ++listSeq;
   loading.value = true;
   loadError.value = '';
   const result = await fetchApprovalList(listParams());
-  if(seq !== listSeq) return;
+  if(seq !== listSeq)return;
   loading.value = false;
   if(!result.ok){
     loadError.value = `預約列表載入失敗：${result.message}`;
@@ -209,6 +211,17 @@ function handleCurrentChange(row){
 function handleSortChange({ order }){
   changeSort(order === 'ascending' ? 'asc' : 'desc');
 }
+// 送出審核前先查這一筆「現在」的狀態：後端不檢查原狀態，畫面是舊的（別人已經處理過、或分頁放很久）時直接送出，
+// 會把已核准的單改回「修改待審核」，或把已報到的單改成拒絕。查不到目前狀態時寧可不送。
+// （查詢和送出之間仍有極短的空檔，要完全避免得由後端檢查。）
+async function reviewOne(row, kind){
+  const latest = await fetchReservationDetail(row.id);
+  if(!latest.ok)return{ ok: false, message: `無法確認目前狀態：${latest.message}` };
+  if(!PENDING_STATUSES.includes(latest.data.reservation_status)){
+    return{ ok: false, changed: true, status: statusOf(latest.data).label };
+  }
+  return kind === 'approve' ? approveReservation(row.id) : rejectReservation(row.id);
+}
 // 核准／拒絕的共用流程：確認 → 逐筆呼叫 → 彙整結果 → 重新載入。
 // 只有待審核(0、1)的能審核；勾選裡混了其他狀態的(例如在「全部」頁籤)，確認框與結果都要講明略過幾筆，不能默默跳過。
 async function review(targets, kind){
@@ -227,25 +240,37 @@ async function review(targets, kind){
       cancelButtonText: '取消',
       type: isApprove ? 'info' : 'warning',
     });
-  } catch {
+  }catch{
     return;
   }
   actionBusy.value = true;
   // 後端只有單筆 API，批次就逐筆依序呼叫(不併發)。
   const results = [];
   for(const r of pending){
-    results.push(await (isApprove ? approveReservation(r.id) : rejectReservation(r.id)));
+    results.push(await reviewOne(r, kind));
   }
-  const failed = results.filter((r) => !r.ok);
-  const succeeded = results.length - failed.length;
   actionBusy.value = false;
-  const skippedTail = skipped > 0 ? `，略過 ${skipped} 筆非待審核` : '';
-  if (failed.length === 0){
-    ElMessage.success(`已${verb} ${succeeded} 筆預約${skippedTail}`);
-  }else{
-    ElMessage.error(`${verb}成功 ${succeeded} 筆、失敗 ${failed.length} 筆${skippedTail}。失敗原因：${failed[0].message}`);
-  }
+  showReviewResult(results, verb, skipped);
   await reloadAll();
+}
+function showReviewResult(results, verb, skipped){
+  const succeeded = results.filter((r) => r.ok).length;
+  const changed = results.filter((r) => r.changed);
+  const failed = results.filter((r) => !r.ok && !r.changed);
+  const skippedTail = skipped > 0 ? `，略過 ${skipped} 筆非待審核` : '';
+  if(results.length === 1 && changed.length === 1){
+    ElMessage.warning(`這筆預約的狀態已經變更（目前是「${changed[0].status}」），沒有送出${verb}，列表已重新整理${skippedTail}`);
+    return;
+  }
+  if(succeeded === results.length){
+    ElMessage.success(`已${verb} ${succeeded} 筆預約${skippedTail}`);
+    return;
+  }
+  const parts = [`${verb}成功 ${succeeded} 筆`];
+  if(changed.length) parts.push(`${changed.length} 筆狀態已經變更而沒有送出`);
+  if(failed.length) parts.push(`失敗 ${failed.length} 筆`);
+  const reason = failed.length ? `。失敗原因：${failed[0].message}` : '';
+  ElMessage[failed.length ? 'error' : 'warning'](`${parts.join('、')}${skippedTail}${reason}`);
 }
 function handleSingle(kind){
   if (currentRow.value) review([currentRow.value], kind);
@@ -253,9 +278,10 @@ function handleSingle(kind){
 function handleBatch(kind){
   review(selection.value, kind);
 }
-// 匯出符合目前列表條件（狀態、關鍵字、來訪日期）的全部資料，檔案由後端產生，上限 5000 筆。
+// 匯出符合目前列表條件（狀態、關鍵字、來訪日期、申請日期）的全部資料，檔案由後端產生；超過上限會先詢問。
 // 後端目前只能匯出「全部」或單一狀態（見 exportApprovals），不能匯出的頁籤會顯示原因。
 async function handleExport(){
+  if(!(await confirmExportLimit(total.value)))return;
   exporting.value = true;
   const result = await exportApprovals('excel', summaryParams());
   exporting.value = false;
@@ -268,11 +294,56 @@ async function handleExport(){
 // 選到另一筆就抓它的詳情；回應回來時如果又換了一筆，丟掉舊的回應。
 watch(currentId, async (id) => {
   detail.value = null;
-  if(id === null) return;
+  if(id === null)return;
   const result = await fetchReservationDetail(id);
-  if(result.ok && currentId.value === id) detail.value = result.data;
+  if(result.ok && currentId.value === id)detail.value = result.data;
 });
-onMounted(search);
+// ── 從右上角鈴鐺進來（見 layouts/PendingApprovalsBell.vue）──
+// 網址帶 ?tab=pending（「查看全部待審核」），點某一筆時另帶 &id=預約 id：清空篩選、切到該頁籤（規則見 useApprovalQuery 第 6 點），有 id 就選取那一筆。
+// 讀完就把網址參數拿掉：重新整理不會再做一次，已經在這頁時再從鈴鐺點同一筆也會重新觸發。
+const route = useRoute();
+const router = useRouter();
+// 離開這頁時 route 會先變成下一頁的，那時候的網址參數不是給這頁的，不能處理（更不能把它清掉）。
+const ownPath = route.path;
+function takeRouteRequest(){
+  if(route.path !== ownPath)return null;
+  const { tab, id } = route.query;
+  if(!tab && !id)return null;
+  router.replace({ path: route.path, query: {} });
+  return{ tab, id: Number(id) || null };
+}
+async function handleRouteRequest(request){
+  await resetToTab(request.tab);
+  if(request.id && !loadError.value)await focusReservation(request.id);
+}
+// 鈴鐺列的是最新的幾筆，切到「待審核」第 1 頁通常就看得到。看不到時（剛好又有新的申請把它擠到下一頁、排序是舊到新、或已經被別人審核掉），
+// 先查它現在的狀態：已經不是待審核就說明原因；還是待審核就用預約單號當關鍵字查出來。
+async function focusReservation(id){
+  if(rows.value.some((r) => r.id === id)){
+    currentId.value = id;
+    return;
+  }
+  const latest = await fetchReservationDetail(id);
+  if(!latest.ok){
+    ElMessage.warning(`無法開啟這筆預約：${latest.message}`);
+    return;
+  }
+  if(!PENDING_STATUSES.includes(latest.data.reservation_status)){
+    ElMessage.warning(`預約 ${latest.data.reservation_id} 目前是「${statusOf(latest.data).label}」，已經不需要審核（可能已被其他人處理）`);
+    return;
+  }
+  filters.keyword = latest.data.reservation_id;
+  await search();
+  if(rows.value.some((r) => r.id === id))currentId.value = id;
+}
+watch(() => route.query, () => {
+  const request = takeRouteRequest();
+  if(request)handleRouteRequest(request);
+});
+onMounted(() => {
+  const request = takeRouteRequest();
+  return request ? handleRouteRequest(request) : search();
+});
 </script>
 <style scoped>
 .apv__notice{

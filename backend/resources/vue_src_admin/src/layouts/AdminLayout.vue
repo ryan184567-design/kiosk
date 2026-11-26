@@ -64,11 +64,8 @@
           <el-input class="layout__search" placeholder="搜尋訪客姓名、公司、預約單號…">
             <template #prefix><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></template>
           </el-input>
-          <!-- 通知鈴鐺：紅色數字是「待審核預約」的筆數，點了前往訪客審核（沒有這個選單的人點了沒有動作）。 -->
-          <button type="button" class="layout__icon-btn layout__bell" :aria-label="bellLabel" :title="bellLabel" @click="goApprovals">
-            <i class="fa-regular fa-bell" aria-hidden="true"></i>
-            <span v-if="pendingApprovals > 0" class="layout__badge">{{ pendingBadge }}</span>
-          </button>
+          <!-- 通知鈴鐺：紅色數字是「待審核預約」的筆數，點了展開最新幾筆待審核（見 PendingApprovalsBell.vue）。 -->
+          <PendingApprovalsBell :enabled="hasApprovals" :approvals-path="APPROVALS_PATH" />
           <el-dropdown trigger="click">
             <button type="button" class="layout__user">
               <span class="layout__avatar"><i class="fa-regular fa-user" aria-hidden="true"></i></span>
@@ -119,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { auth, authFetch, loadProfile, logout, siteBranding } from '../stores/auth';
 import { pendingApprovals, startPendingApprovalsPolling, stopPendingApprovalsPolling } from '../stores/pendingApprovals';
 import { menuIconClass } from './menuIcons';
+import PendingApprovalsBell from './PendingApprovalsBell.vue';
 const route = useRoute();
 const router = useRouter();
 const sidebarMenu = ref([]);
@@ -131,13 +129,6 @@ function hasApprovalsChild(item){
   return Boolean(item.children?.some((child) => child.path === APPROVALS_PATH));
 }
 const pendingBadge = computed(() => (pendingApprovals.value > 99 ? '99+' : String(pendingApprovals.value)));
-const bellLabel = computed(() => {
-  if(!hasApprovals.value) return '通知';
-  return pendingApprovals.value > 0 ? `${pendingApprovals.value} 筆待審核預約，點擊前往訪客審核` : '前往訪客審核';
-});
-function goApprovals(){
-  if(hasApprovals.value) router.push(APPROVALS_PATH);
-}
 // 側邊欄收合狀態記在 localStorage，重新整理後維持；讀寫失敗(私密視窗等)就當作展開。
 const COLLAPSE_KEY = 'admin_sidebar_collapsed';
 function readCollapsed(){
