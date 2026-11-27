@@ -1,17 +1,24 @@
 <template>
-  <button type="button" class="stat" :class="[`stat--${tone}`, { 'stat--active': active, 'stat--static': !clickable }]" @click="handleClick">
+  <button type="button" class="stat" :class="[`stat--${tone}`, { 'stat--active': active, 'stat--static': !clickable, 'stat--plain': plain }]" @click="handleClick">
     <span class="stat__icon">
-      <i :class="icon" aria-hidden="true"></i>
+      <LineIcon v-if="lineIcon" :name="lineIcon" />
+      <i v-else :class="icon" aria-hidden="true"></i>
     </span>
     <span class="stat__body">
       <span class="stat__label">{{ label }}</span>
-      <span class="stat__row">
+      <span class="stat__row" :class="{ 'stat__row--compare': compareNote }">
         <span class="stat__value">{{ value }}<small v-if="unit" class="stat__unit">{{ unit }}</small></span>
-        <span v-if="trend !== null" class="stat__trend" :class="trend >= 0 ? 'stat__trend--up' : 'stat__trend--down'">
-          <i :class="trend >= 0 ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down'" aria-hidden="true"></i>{{ trend > 0 ? '+' : '' }}{{ trend }}%
+        <span v-if="trend !== null" class="stat__trend" :class="trendClass">
+          <i v-if="trendIcon" :class="trendIcon" aria-hidden="true"></i>{{ trend > 0 ? '+' : '' }}{{ trend }}%
         </span>
+        <span v-else-if="compareNote" class="stat__trend stat__trend--flat">—</span>
+        <!-- 對照排列：第二行左邊是 note、右邊是 compareNote。 -->
+        <template v-if="compareNote">
+          <span class="stat__note">{{ note }}</span>
+          <span class="stat__note">{{ compareNote }}</span>
+        </template>
       </span>
-      <span v-if="note" class="stat__note">{{ note }}</span>
+      <span v-if="note && !compareNote" class="stat__note">{{ note }}</span>
     </span>
   </button>
 </template>
@@ -22,9 +29,15 @@ Author: Callum
 Date: 2026-11-19
 Description: 統計數字卡片（圖示＋標題＋數值），訪客審核、訪客記錄、統計報表共用。
 ***************************************** */
+import { computed } from 'vue';
+import LineIcon from './LineIcon.vue';
 const props = defineProps({
-  // Font Awesome 的 class，例如 'fa-regular fa-calendar-days'。
-  icon: { type: String, required: true },
+  // Font Awesome 的 class，例如 'fa-regular fa-calendar-days'。有給 lineIcon 時可省略。
+  icon: { type: String, default: '' },
+  // LineIcon 的圖示名稱，用來取代 Font Awesome 圖示。
+  lineIcon: { type: String, default: '' },
+  // 圖示不加圓形底色、對齊標題（統計報表總覽的樣式）。
+  plain: { type: Boolean, default: false },
   label: { type: String, required: true },
   value: { type: [Number, String], default: 0 },
   unit: { type: String, default: '' },
@@ -32,6 +45,8 @@ const props = defineProps({
   trend: { type: Number, default: null },
   // 數值下方的小字說明，例如「較上期」或「占 67.5%」。
   note: { type: String, default: '' },
+  // 有給就改用「對照排列」：增減百分比在數值右側、這段文字在百分比下方；trend 為 null 時百分比顯示「—」。
+  compareNote: { type: String, default: '' },
   // 圖示底色：blue、green、red、purple。
   tone: { type: String, default: 'blue' },
   active: { type: Boolean, default: false },
@@ -39,6 +54,17 @@ const props = defineProps({
   clickable: { type: Boolean, default: false },
 });
 const emit = defineEmits(['click']);
+// 對照排列用三角形、持平(0%)用灰色不加箭頭；其他頁面維持原本的箭頭樣式。
+const flat = computed(() => Boolean(props.compareNote) && props.trend === 0);
+const trendClass = computed(() => {
+  if(flat.value) return 'stat__trend--flat';
+  return props.trend >= 0 ? 'stat__trend--up' : 'stat__trend--down';
+});
+const trendIcon = computed(() => {
+  if(flat.value) return '';
+  const shape = props.compareNote ? 'caret' : 'arrow';
+  return `fa-solid fa-${shape}-${props.trend >= 0 ? 'up' : 'down'}`;
+});
 function handleClick(){
   if(props.clickable) emit('click');
 }
@@ -93,6 +119,15 @@ function handleClick(){
   color: #7c5cff;
   background: #eeeaff;
 }
+.stat--plain{
+  align-items: flex-start;
+}
+.stat--plain .stat__icon{
+  width: 36px;
+  height: 36px;
+  font-size: 24px;
+  background: transparent;
+}
 .stat__body{
   display: flex;
   flex-direction: column;
@@ -125,6 +160,20 @@ function handleClick(){
 }
 .stat__trend--down{
   color: #e5484d;
+}
+.stat__trend--flat{
+  color: #9ca3af;
+}
+.stat__row--compare{
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 2px 18px;
+  justify-content: start;
+  align-items: end;
+}
+.stat__row--compare .stat__trend{
+  padding-bottom: 2px;
+  white-space: nowrap;
 }
 .stat__value{
   font-size: 26px;

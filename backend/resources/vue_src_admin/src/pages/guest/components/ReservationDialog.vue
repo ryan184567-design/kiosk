@@ -106,7 +106,7 @@
           <el-input v-model="draft.phone" maxlength="30" placeholder="例如 0912-345-678" />
         </el-form-item>
         <el-form-item label="Email" prop="email">
-          <el-input v-model="draft.email" maxlength="150" />
+          <el-input v-model.trim="draft.email" maxlength="150" />
         </el-form-item>
         <el-form-item label="車牌號碼" prop="plate_number">
           <el-input v-model="draft.plate_number" maxlength="20" placeholder="選填" />
@@ -286,7 +286,10 @@ const visitorRules = {
     { required: true, message: '請輸入手機號碼', trigger: 'blur' },
     { pattern: PHONE_PATTERN, message: PHONE_MESSAGE, trigger: 'blur' },
   ],
-  email: [{ type: 'email', message: 'Email 格式不正確', trigger: 'blur' }],
+  email: [
+    { required: true, whitespace: true, message: '請輸入 Email', trigger: 'blur' },
+    { type: 'email', message: 'Email 格式不正確', trigger: 'blur' },
+  ],
 };
 // 成功回傳 true；失敗時把原因放在 doorplateError（畫面上方顯示，可以重試）。
 async function loadDoorplates(){
@@ -440,7 +443,7 @@ function buildPayload(){
       company_name: v.company_name.trim(),
       title: blankToNull(v.title),
       phone: v.phone.trim(),
-      email: blankToNull(v.email),
+      email: v.email.trim(),
       plate_number: blankToNull(v.plate_number),
     })),
   };
@@ -455,6 +458,12 @@ async function handleSubmit(){
   }
   if (visitors.value.length > form.guest_count) {
     submitError.value = '來訪者名單人數不可超過來訪人數';
+    return;
+  }
+  // Email 是必填，但舊預約的名單可能有人沒填(以前是選填)，編輯時要先補上才能儲存。
+  const noEmail = visitors.value.filter((v) => !(v.email || '').trim());
+  if(noEmail.length){
+    submitError.value = `${noEmail.map((v) => v.name).join('、')} 還沒有 Email，請在名單按「編輯」補上後再儲存`;
     return;
   }
   submitting.value = true;

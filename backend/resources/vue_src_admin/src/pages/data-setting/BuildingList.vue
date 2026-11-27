@@ -13,19 +13,15 @@
         </el-button>
       </div>
     </div>
-    <p class="ds__note"><i class="fa-solid fa-circle-info ds__icon" aria-hidden="true"></i>目前系統只提供新增，建立後無法修改或刪除，請確認內容再送出。新增棟別會自動建立它的樓層資料。</p>
+    <p class="ds__note"><i class="fa-solid fa-circle-info ds__icon" aria-hidden="true"></i>目前系統只提供新增，建立後無法修改或刪除，請確認內容再送出。新增棟別會自動建立它的樓層資料。點選棟別可查看它的樓層。</p>
     <LoadErrorAlert v-if="loadError" class="ds__notice" :message="loadError" @retry="load" />
-    <el-table v-loading="loading" :data="visible" :empty-text="items.length ? '沒有符合條件的棟別' : '還沒有棟別資料'">
+    <!-- 點一列＝查看該棟別的樓層 -->
+    <el-table v-loading="loading" :data="visible" class="ds__table--clickable" :empty-text="items.length ? '沒有符合條件的棟別' : '還沒有棟別資料'" @row-click="openFloors">
       <el-table-column label="棟別名稱" prop="name" min-width="200" />
       <el-table-column label="地上樓層" prop="on_floor" min-width="110" align="center" />
       <el-table-column label="地下樓層" prop="under_floor" min-width="110" align="center" />
       <el-table-column label="樓層合計" min-width="110" align="center">
         <template #default="{ row }">{{ row.on_floor + row.under_floor }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="130" align="center">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="router.push({ name: 'data-setting-floor', query: { bid: row.id } })">查看樓層</el-button>
-        </template>
       </el-table-column>
     </el-table>
     <el-dialog v-model="dialogVisible" title="新增棟別" width="440px" :close-on-click-modal="false">
@@ -77,6 +73,9 @@ async function load(){
   if(result.ok) items.value = result.data.items || [];
   else loadError.value = `棟別資料載入失敗：${result.message}`;
   return result;
+}
+function openFloors(row){
+  router.push({ name: 'data-setting-floor', query: { bid: row.id } });
 }
 const dialogVisible = ref(false);
 const saving = ref(false);

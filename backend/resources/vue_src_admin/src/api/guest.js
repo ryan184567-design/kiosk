@@ -7,7 +7,6 @@ Description: 訪客管理模塊的 API 呼叫封裝（預約、審核、門牌�
 import { authFetch } from '../stores/auth';
 import { failureMessage, postJson, putJson, request } from './http';
 import { adaptListItem, adaptRecordDetail, adaptReportDay, adaptReportOverview, adaptRecordItem, adaptRecordStats, buildApprovalDateParams, buildListQuery, buildRecordQuery, mergeStatusResults, normalizeStatuses } from './guestAdapter';
-import { registerMock } from './guestMock';
 import { PENDING_STATUSES, REJECTED_STATUS } from '../pages/guest/constants';
 import { todayString, weekRange } from '../pages/guest/format';
 // 把查詢參數轉成網址：略過空值，陣列用 key[]=a&key[]=b 的寫法。
@@ -102,23 +101,7 @@ export async function fetchPendingCount(){
   }
   return{ ok: true, data: count, message: '' };
 }
-// ─────────────────────────────────────────────────────────────
-// 後端尚未完成的 API：目前用假資料(見 guestMock.js)，後端好了把對應旗標改成 false
-// 就切到真 API，全部做完後把 guestMock.js 整支刪掉。
-// 頁面只認這裡回傳的欄位格式(照後端資料表命名)，所以切換時頁面不用改，
-// 只可能需要微調這支檔案。下面「真 API」那幾行的網址與參數名稱都是暫定，待後端確認。
-// ─────────────────────────────────────────────────────────────
-const USE_MOCK = {
-  // 現場訪客登記：後端沒有對應 API(資料表有 reservation_type=1 現場預約，
-  // 但尚未確認登記要走哪支 API、是否需要受訪公司／受訪人)。
-  registration: true,
-};
-// 頁面用來判斷「這支 API 現在是不是假資料」，決定要不要顯示示意資料提示；
-// 旗標改成 false 後提示自動消失，不用記得手動拿掉。
-export function isMock(name){
-  return Boolean(USE_MOCK[name]);
-}
-// 真 API：GET /api/guest/applies。後端一次只能查一個狀態，
+// GET /api/guest/applies。後端一次只能查一個狀態，
 // 這些細節都收在 guestAdapter.js；這裡只負責呼叫，並把回傳欄位轉成頁面使用的格式。
 // 多個狀態時（例如待審核 0、1）依序分次查詢（不要併發：README 提到本機併發請求偶發 500）再合併。
 // 「已拒絕（70）」後端 2026-11-25 `2e9d019` 起可以直接查，和其他狀態一樣。
@@ -335,12 +318,4 @@ export function approveReservation(id){
 }
 export function rejectReservation(id){
   return putJson(`/api/guest/applies/${id}/status`, { reservation_status: REJECTED_STATUS });
-}
-// 現場訪客登記。payload 欄位照後端資料表命名：
-// { guest_count, visit_reason, remark, visitor: { name, phone, company_name, title, plate_number } }。
-export function registerWalkIn(payload){
-  if(USE_MOCK.registration){
-    return registerMock(payload);
-  }
-  return postJson('/api/guest/registration', payload); // 網址暫定
 }

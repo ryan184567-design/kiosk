@@ -24,7 +24,6 @@ const ICON_BY_KEY = {
   floor: 'fa-solid fa-layer-group',
   doorplate: 'fa-solid fa-door-open',
   // 訪客管理
-  registration: 'fa-solid fa-user-plus',
   approvals: 'fa-solid fa-clipboard-check',
   records: 'fa-solid fa-clock-rotate-left',
   applies: 'fa-solid fa-calendar-check',
