@@ -80,12 +80,12 @@
                 <el-tooltip content="檢視" placement="top">
                   <button type="button" class="cal__action" aria-label="檢視" @click="emit('view', item)"><i class="fa-regular fa-eye" aria-hidden="true"></i></button>
                 </el-tooltip>
-                <el-tooltip :content="canEdit(item) ? '編輯' : '此狀態不能編輯'" placement="top">
+                <el-tooltip :content="editTip(item)" placement="top">
                   <span>
                     <button type="button" class="cal__action" aria-label="編輯" :disabled="!canEdit(item)" @click="emit('edit', item)"><i class="fa-regular fa-pen-to-square" aria-hidden="true"></i></button>
                   </span>
                 </el-tooltip>
-                <el-tooltip :content="canCancel(item) ? '取消預約' : '此狀態不能取消'" placement="top">
+                <el-tooltip :content="cancelTip(item)" placement="top">
                   <span>
                     <button type="button" class="cal__action cal__action--danger" aria-label="取消預約" :disabled="!canCancel(item)" @click="emit('cancel', item)"><i class="fa-solid fa-ban" aria-hidden="true"></i></button>
                   </span>
@@ -143,10 +143,16 @@ const dayTitle = (day) => `${Number(day.slice(5, 7))}月${Number(day.slice(8))}�
 const groupOf = (code) => CALENDAR_GROUPS.find((g) => g.key === groupKeyOf(code));
 const statusLabel = (code) => RESERVATION_STATUS[code]?.label || `狀態 ${code}`;
 const chipText = (item) => `${item.visit_start_time} ${item.company_name || item.host_name}`;
-// 可編輯：狀態在可修改清單內，且尚未報到。
-const canEdit = (item) => EDITABLE_STATUSES.includes(item.reservation_status) && !item.check_in_at;
+// 有沒有權限動這筆：後端 can_modify（一般員工只能處理自己建立的預約，同事的為 false）；舊版後端沒有這欄時視為可以。
+const isOwnable = (item) => item.can_modify !== false;
+const statusEditable = (item) => EDITABLE_STATUSES.includes(item.reservation_status) && !item.check_in_at;
+// 可編輯：有權限、狀態在可修改清單內，且尚未報到。
+const canEdit = (item) => isOwnable(item) && statusEditable(item);
 // 公司端口沒有刪除權限，改成取消：後端只允許可修改的狀態（待審核、核准）且尚未報到的預約取消。
-const canCancel = (item) => EDITABLE_STATUSES.includes(item.reservation_status) && !item.check_in_at;
+const canCancel = (item) => isOwnable(item) && statusEditable(item);
+// 按鈕停用時的提示：分清楚是沒權限還是狀態不允許。
+const editTip = (item) => (canEdit(item) ? '編輯' : (isOwnable(item) ? '此狀態不能編輯' : '只能編輯自己建立的預約'));
+const cancelTip = (item) => (canCancel(item) ? '取消預約' : (isOwnable(item) ? '此狀態不能取消' : '只能取消自己建立的預約'));
 function visibleItems(day){
   const list = byDate.value[day] || [];
   return view.value === 'month' ? list.slice(0, MONTH_CELL_LIMIT) : list;

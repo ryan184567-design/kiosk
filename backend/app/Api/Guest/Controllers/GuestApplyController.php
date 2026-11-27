@@ -5,6 +5,7 @@ namespace App\Api\Guest\Controllers;
 use App\Support\Http\Controllers\BaseApiController;
 use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Api\Concerns\PaginationHelper;
+use App\Support\Api\ErrorCode;
 use App\Api\Guest\Services\GuestApplyService;
 use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Api\Guest\Support\GuestCompanyContext;
@@ -55,6 +56,7 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.items[].visit_reason int 來訪事由，必填
      * @api-response-field data.items[].check_in_at datetime 到場時間，尚未報到為 null
      * @api-response-field data.items[].check_out_at datetime 離場時間，尚未報到為 null
+     * @api-response-field data.items[].can_modify bool 登入者是否有權修改／取消此預約單（公司端口一般員工只能處理自己建立的；不含狀態判斷）
      * @api-response-field data.items[].visitor array 來訪者明細
      * @api-response-field data.items[].visitor[].id int 來訪者ID
      * @api-response-field data.items[].visitor[].guest_name string 來訪者姓名
@@ -216,6 +218,7 @@ class GuestApplyController extends BaseApiController
      * @api-response-field data.access_card_no string 門禁卡號，尚未配發為 null
      * @api-response-field data.check_in_at datetime 到場時間，尚未報到為 null
      * @api-response-field data.check_out_at datetime 離場時間，尚未離場為 null
+     * @api-response-field data.can_modify bool 登入者是否有權修改／取消此預約單（公司端口一般員工只能處理自己建立的；不含狀態判斷）
      * @api-response-field data.created_at datetime 建立時間
      * @api-response-field data.updated_at datetime 最後更新時間
      * @api-response-field data.visitor array 來訪者明細
@@ -258,6 +261,7 @@ class GuestApplyController extends BaseApiController
      * 修改後的審核狀態：公司員工從公司端口修改、且公司設定免審核 → 11（修改已核准）；其餘一律 1（修改待審核）。
      * 只有尚未報到的預約單可以修改。
      * **公司端口（company）**：只能修改自己公司的預約單，`doorplate_id` 不用傳，一律為登入者所屬公司。
+     * 一般員工只能修改自己建立的預約單，修改同事的預約單回 403；公司管理員、審核者不受此限。
      * @api-dict guest_apply_reservation_status 0:待審核、1:修改待審核、10:已核准、11:修改已核准、20:已通知、30:未到、40:已到、50:已離場、60:已取消
      * @api-dict guest_apply_reservation_type 0:事前預約,1:現場預約
      * @api-request-field doorplate_id int 受訪公司（門牌）ID，admin 端口必填、需為已存在的門牌；公司端口免填（傳了也會被忽略）
@@ -289,6 +293,10 @@ class GuestApplyController extends BaseApiController
         $data['doorplate_id'] = $this->scopedDoorplateId($data);
 
         try {
+            if ($denied = $this->denyIfNotModifiable($id, $service)) {
+                return $denied;
+            }
+
             $guestApply = $service->update(
                 $id,
                 $data['doorplate_id'],
@@ -322,6 +330,7 @@ class GuestApplyController extends BaseApiController
      * @api-description
      * 取消預約單：審核狀態改為 60（已取消），並清除 QR code 與速通碼、門禁卡號使其立即失效。
      * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
+     * 一般員工只能取消自己建立的預約單，取消同事的預約單回 403；公司管理員、審核者不受此限。
      * 這是狀態變更而非刪除，預約單與來訪者資料都會保留，已取消的預約單不可再修改或再次取消。
      * @api-dict guest_apply_reservation_status 0:待審核、1:修改待審核、10:已核准、11:修改已核准、20:已通知、30:未到、40:已到、50:已離場、60:已取消
      * @api-no-request-body
@@ -330,6 +339,10 @@ class GuestApplyController extends BaseApiController
     public function cancel(int $id, Request $request, GuestApplyService $service)
     {
         try {
+            if ($denied = $this->denyIfNotModifiable($id, $service)) {
+                return $denied;
+            }
+
             $service->cancel($id);
         } catch (RuntimeException $e) {
             return $this->failFromService($e);
@@ -389,6 +402,25 @@ class GuestApplyController extends BaseApiController
         $service->delete($id);
 
         return $this->success();
+    }
+
+    /** 目前登入者能否修改／取消此預約單：admin 端口（沒有公司身分）不受限，公司端口依公司內身分判斷 */
+    private function canModify(GuestApply $apply): bool
+    {
+        return GuestCompanyContext::member()?->canModifyApply($apply) ?? true;
+    }
+
+    /**
+     * 公司端口的一般員工不能修改／取消同事建立的預約單，回 403；可以處理時回 null。
+     * 預約單不存在（含別家公司的單）由 show() 拋出 404。
+     */
+    private function denyIfNotModifiable(int $id, GuestApplyService $service)
+    {
+        if ($this->canModify($service->show($id))) {
+            return null;
+        }
+
+        return $this->fail(ErrorCode::PERMISSION_DENIED, __('api.guest_apply.not_owner'));
     }
 
     // 公司端口一律用登入者所屬公司（門牌），忽略前端傳的 doorplate_id，避免替別家公司建單或把單改到別家。
@@ -455,6 +487,7 @@ class GuestApplyController extends BaseApiController
             'access_card_no' => $apply->access_card_no,
             'check_in_at' => $apply->check_in_at?->toDateTimeString(),
             'check_out_at' => $apply->check_out_at?->toDateTimeString(),
+            'can_modify' => $this->canModify($apply),
             'visitor' => $apply->guests->map(fn (Guest $g) => [
                 'id' => $g->id,
                 'guest_name' => $g->name,
@@ -488,6 +521,7 @@ class GuestApplyController extends BaseApiController
             'check_in_at' => $apply->check_in_at?->toDateTimeString(),
             'check_out_at' => $apply->check_out_at?->toDateTimeString(),
             'created_at' => $apply->created_at,
+            'can_modify' => $this->canModify($apply),
             'visitor' => $apply->guests->map(fn (Guest $g) => [
                 'id' => $g->id,
                 'guest_name' => $g->name,

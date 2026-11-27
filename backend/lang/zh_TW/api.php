@@ -139,6 +139,7 @@ return [
         'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
         'not_checkable' => '此預約單目前狀態不可報到。',
         'not_pending' => '此預約單不是待審核狀態，無法核准或拒絕。',
+        'not_owner' => '一般員工只能修改或取消自己建立的預約單。',
     ],
 
     // 訪客模組公司端口（company）

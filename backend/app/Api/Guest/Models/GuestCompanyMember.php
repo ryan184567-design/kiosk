@@ -83,4 +83,18 @@ class GuestCompanyMember extends Model
     {
         return in_array($this->member_type, [self::TYPE_ADMIN, self::TYPE_APPROVER], true);
     }
+
+    /**
+     * 能否修改／取消這張預約單：公司管理員、審核者可處理公司內所有預約單；
+     * 一般員工只能處理自己建立的（created_by 為自己），不能動同事的預約。
+     * （公司範圍已由 GuestApply 全域範圍限制，這裡只判斷公司內身分。）
+     */
+    public function canModifyApply(GuestApply $apply): bool
+    {
+        if ($this->member_type !== self::TYPE_EMPLOYEE) {
+            return true;
+        }
+
+        return $apply->created_by !== null && $apply->created_by === $this->user_id;
+    }
 }
