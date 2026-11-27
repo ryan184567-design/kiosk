@@ -74,10 +74,10 @@
             <h3 class="rpt__title">訪客統計明細</h3>
             <div class="rpt__actions">
               <el-button :loading="exporting === 'excel'" @click="handleExport('excel')">
-                <i class="fa-regular fa-file-excel rpt__icon rpt__icon--green" aria-hidden="true"></i>匯出 Excel
+                <FileTypeIcon type="excel" class="rpt__icon" />匯出 Excel
               </el-button>
               <el-button :loading="exporting === 'pdf'" @click="handleExport('pdf')">
-                <i class="fa-regular fa-file-pdf rpt__icon rpt__icon--red" aria-hidden="true"></i>匯出 PDF
+                <FileTypeIcon type="pdf" class="rpt__icon" />匯出 PDF
               </el-button>            </div>
           </div>
           <el-table v-loading="loadingDaily" :data="daily" empty-text="沒有資料">
@@ -119,6 +119,7 @@ Description: 統計報表頁(訪客統計總覽：統計卡片、趨勢折線、
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { exportReportDaily, fetchDoorplates, fetchReportDaily, fetchReportOverview } from '../../api/guest';
+import FileTypeIcon from './components/FileTypeIcon.vue';
 import FloorBars from './components/FloorBars.vue';
 import LoadErrorAlert from './components/LoadErrorAlert.vue';
 import ReasonDonut from './components/ReasonDonut.vue';
@@ -361,12 +362,6 @@ onMounted(() => {
   margin: 0 0 14px;
   color: var(--el-text-color-secondary);
   font-size: 13px;
-}
-.rpt__icon--green{
-  color: #16a34a;
-}
-.rpt__icon--red{
-  color: #e5484d;
 }
 .rpt__stats{
   display: grid;
