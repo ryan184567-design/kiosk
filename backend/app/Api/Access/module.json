@@ -8,28 +8,6 @@
     "menus": [
         {
             "portal": "admin",
-            "key": "organize",
-            "title": "組織列表",
-            "subtitle": null,
-            "icon": "Menu",
-            "path": "/access/organize",
-            "permission_code": "api.access.index",
-            "group": "group-access",
-            "sort": 0
-        },
-        {
-            "portal": "admin",
-            "key": "passtime",
-            "title": "通行時段列表",
-            "subtitle": null,
-            "icon": "Menu",
-            "path": "/access/passtime",
-            "permission_code": "api.access.passtime",
-            "group": "group-access",
-            "sort": 1
-        },
-        {
-            "portal": "admin",
             "key": "accessfloor",
             "title": "訪客樓層權限設定",
             "subtitle": null,
@@ -37,7 +15,7 @@
             "path": "/access/floor",
             "permission_code": "api.access.floor",
             "group": "group-access",
-            "sort": 2
+            "sort": 0
         },
         {
             "portal": "admin",
@@ -48,7 +26,7 @@
             "path": "/access/card",
             "permission_code": "api.access.accesscard",
             "group": "group-access",
-            "sort": 3
+            "sort": 1
         },
         {
             "portal": "admin",
@@ -59,7 +37,7 @@
             "path": "/access/api",
             "permission_code": "api.access.accessapi",
             "group": "group-access",
-            "sort": 4
+            "sort": 2
         }
     ]
 }

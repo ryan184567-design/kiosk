@@ -225,4 +225,20 @@ return [
         ],
     ],
 
+    'access' => [
+        'has_card' => '此卡號已存在',
+        'card_not_found' => '此訪客卡不存在',
+        'cannot_add_access_floor' => '此樓層已有門禁權限設定',
+        'access_floor_not_found' => '此樓層無門禁權限設定',
+        'cannot_edit_access_floor' => '無法編輯此樓層門禁權限',
+        'not_found_url' => '無門禁API的URL',
+        'url_connection_failed' => '門禁API的URL連線失敗',
+        'not_found_organize_id' => '找不到組織ID',
+        'add_card_failed' => '新增卡片權限失敗',
+        'add_card_api_failed' => '新增卡片權限(API)失敗',
+        'del_card_failed' => '刪除卡片權限失敗',
+        'del_card_api_failed' => '刪除卡片權限(API)失敗',
+        'invalid_card_no' => '卡號格式不正確'
+    ],
+
 ];

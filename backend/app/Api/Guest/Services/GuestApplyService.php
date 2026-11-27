@@ -8,7 +8,8 @@ use App\Api\Guest\Models\GuestApply;
 use App\Api\Guest\Models\GuestSlot;
 
 use App\Api\Access\Models\AccessCard;
-
+use App\Api\Access\Services\AccessService;
+use App\Api\DataSetting\Models\Doorplate;
 use App\Support\Dashboard\DashboardReporter;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
 use RuntimeException;
 class GuestApplyService
 {
+    public function __construct(private readonly AccessService $accessService) {}
     /** 可以修改／取消的狀態：待審核、核准 */
     private const EDITABLE_STATUSES = [
         GuestApply::STATUS_PENDING,
@@ -290,24 +292,25 @@ class GuestApplyService
                 throw new RuntimeException(__('api.guest_slot.in_use'), 404);
             }
 
+            $doorplate = Doorplate::query()->find($apply->doorplate_id);
+            $card = AccessCard::query()->where('status', 0)->first();
+
+            // 將訪客卡資訊傳到門禁
+            $this->accessService->AddPerson($card->card_number, $doorplate->floor, $card->id, $card->person_id);
+
+            // 更新證件櫃
             $cardSlot->update([
                 'reservation_id' => $apply->reservation_id,
                 'status' => GuestSlot::STATUS_USED,
             ]);
 
-            $card = AccessCard::query()->where('status', 0)->first();
-
+            // 更新訪客預約單
             $apply->update([
                 'id_card_slot_no' => $cardSlot->name,
                 'consent_form' => $consentForm,
                 'reservation_status' => GuestApply::STATUS_CHECKED_IN,
                 'check_in_at' => now(),
                 'access_card_no' => $card->card_number,
-            ]);
-
-            $card->update([
-                'reserve_date' => date('Y-m-d'),
-                'status' => 1,
             ]);
 
             return $apply;
@@ -333,6 +336,10 @@ class GuestApplyService
                 throw new RuntimeException(__('api.guest_slot.not_found'), 404);
             }
 
+            // 將移除訪客卡資訊傳到門禁
+            $this->accessService->DeletePersonInOrganize($card_no);
+
+            // 更新證件櫃資訊
             $cardSlot->update([
                 'reservation_id' => null,
                 'status' => GuestSlot::STATUS_FREE,
@@ -343,7 +350,7 @@ class GuestApplyService
                 'fast_pass_code' => null,
                 'reservation_status' => GuestApply::STATUS_CHECKED_OUT,
                 'check_out_at' => now(),
-                // 門禁卡號之後確認：先不寫入，保持 null，避免假值混進查詢欄位
+                'access_card_no' => null,
             ]);
 
             return $apply;

@@ -5,7 +5,7 @@ namespace App\Api\Access\Controllers;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
 
-use App\Api\Access\Services\AccessService;
+use App\Api\Access\Services\AccessFloorService;
 
 use App\Api\Access\Models\AccessFloor;
 
@@ -37,9 +37,9 @@ class AccessFloorSettingController extends BaseApiController
      * @api-response-field data.elevator[].key.Floor int 樓層代碼
      * @api-response-field data.elevator[].key.Label string 樓層名稱
      */
-    public function index(Request $request, AccessService $access)
+    public function indexFloorAccess(Request $request, AccessFloorService $access)
     {
-        $items = $access->getFloorAccessList()
+        $items = collect($access->getFloorAccessList())
             ->map(fn (AccessFloor $item) => $this->presentListItem($item))
             ->all();
 
@@ -69,7 +69,7 @@ class AccessFloorSettingController extends BaseApiController
      * {"floor": 5, "control_list": "[{\"DeviceId\":\"4917b746-9835-47f1-8909-b17462d118cb\",\"AccessMode\":2,\"AccessScheduleId\":\"9145c9b4-702f-408b-85f2-2daf9f6b17ee\"}]", "floor_list": "[{\"DeviceId\":\"4917b746-9835-47f1-8909-b17462d118cb\",\"Floors\":[5,9]}]", "remark": "5 樓訪客卡"}
      * @api-response-field data.id int 新增的設定ID
      */
-    public function storeFloorAccess(Request $request, AccessService $access)
+    public function storeFloorAccess(Request $request, AccessFloorService $access)
     {
         $data = $this->validateInput($request, [
             'floor' => ['required', 'int', 'max:100'],
@@ -109,7 +109,7 @@ class AccessFloorSettingController extends BaseApiController
      * @api-response-field data.created_at datetime 建立時間
      * @api-response-field data.updated_at datetime 最後更新時間
      */
-    public function showFloorAccess(int $id, AccessService $access)
+    public function showFloorAccess(int $id, AccessFloorService $access)
     {
         $result = $access->getFloorAccessId($id);
 
@@ -137,7 +137,7 @@ class AccessFloorSettingController extends BaseApiController
      * {"floor": 5, "control_list": "[{\"DeviceId\":\"4917b746-9835-47f1-8909-b17462d118cb\"}]", "floor_list": "[{\"DeviceId\":\"4917b746-9835-47f1-8909-b17462d118cb\",\"Floors\":[5,9]}]", "remark": "5 樓訪客卡"}
      * @api-response-empty
      */
-    public function updateFloorAccess(Request $request, int $id, AccessService $access)
+    public function updateFloorAccess(Request $request, int $id, AccessFloorService $access)
     {
         $data = $this->validateInput($request, [
             'id' => ['required', 'int'],
@@ -169,7 +169,7 @@ class AccessFloorSettingController extends BaseApiController
      * @api-no-request-body
      * @api-response-empty
      */
-    public function destroyFloorAccess(Request $request, int $id, AccessService $access)
+    public function destroyFloorAccess(Request $request, int $id, AccessFloorService $access)
     {
         $access->delFloorAccess($id);
 

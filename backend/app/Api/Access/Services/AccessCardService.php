@@ -2,41 +2,50 @@
 
 namespace App\Api\Access\Services;
 
-use GuzzleHttp\Client;
-
 use Illuminate\Contracts\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
-
-use App\Api\Access\Models\AccessSetting;
-use App\Api\Access\Models\AccessFloor;
 use App\Api\Access\Models\AccessCard;
 
 use RuntimeException;
 
 class AccessCardService
 {
-    // 將卡號從8h10d轉為4h10d
-    public function convert_four_h10d_card(int $card_no)
+
+    // 8H10D（32 位元卡號以 10 碼十進位表示）→ 4H10D（高 16 位元、低 16 位元各自轉十進位，各補滿 5 碼後相接）
+    public function convert_four_h10d_card(string|int $card_no): string
     {
-        if(strlen($card_no) < 10){
-            $interval = 10 - strlen($card_no);
-            for($i = 0; $i < $interval; $i++){
-                $card_no = '0'.$card_no;
-            }
+        $value = (int) $this->normalize_card_digits($card_no);
+
+        if ($value > 4294967295) {
+            throw new RuntimeException(__('api.access.invalid_card_no'));
         }
 
-        // 8H10D->4H4H10D
-        $card_no = base_convert($card_no, 10, 16);
-        $start_four = substr($card_no, 0, 4);
-        $end_four = substr($card_no, 4);
-        $start_four = base_convert($start_four, 16, 10);
-        $end_four = base_convert($end_four, 16, 10);
-        $start_four = str_pad(($start_four), 5, "0", STR_PAD_LEFT);
-        $end_four = str_pad(($end_four), 5, "0", STR_PAD_LEFT);
-        $four_h10d = $start_four.$end_four;
+        return sprintf('%05d%05d', $value >> 16, $value & 0xFFFF);
+    }
 
-        return $four_h10d;
+    // 4H10D → 8H10D：前 5 碼是高 16 位元、後 5 碼是低 16 位元，各自不得超過 65535
+    public function convert_eight_h10d_card(string|int $card_no): string
+    {
+        $digits = $this->normalize_card_digits($card_no);
+        $high = (int) substr($digits, 0, 5);
+        $low = (int) substr($digits, 5, 5);
+
+        if ($high > 65535 || $low > 65535) {
+            throw new RuntimeException(__('api.access.invalid_card_no'));
+        }
+
+        return sprintf('%010d', ($high << 16) | $low);
+    }
+
+    // 卡號必須是純數字且不超過 10 碼；不足 10 碼左邊補 0
+    private function normalize_card_digits(string|int $card_no): string
+    {
+        $card_no = (string) $card_no;
+
+        if (! ctype_digit($card_no) || strlen($card_no) > 10) {
+            throw new RuntimeException(__('api.access.invalid_card_no'));
+        }
+
+        return str_pad($card_no, 10, '0', STR_PAD_LEFT);
     }
 
     public function list():Builder
@@ -57,17 +66,29 @@ class AccessCardService
             throw new RuntimeException(__('api.access.has_card'), 404);
         }
 
+        // 卡片編碼
         $access_number = $this->convert_four_h10d_card($card_number);
 
-        $card = AccessCard::query()->create([
-            'card_number' => $card_number,
-            'access_number' => $access_number,
-            'status' => 0
-        ]);
+        $card = AccessCard::withTrashed()->where('card_number', $card_number)->first();
+        if ($card) {
+            if (! $card->trashed()) {
+                throw new RuntimeException(__('api.access_card.exists'), 409);   // 卡號已存在
+            }
+            $card->restore();
+            $card->update([
+                'status' => 0
+            ]);
+        } else {
+            $card = AccessCard::query()->create([
+                'card_number' => $card_number,
+                'access_number' => $access_number,
+                'status' => 0
+            ]);
 
-        $card->update([
-            'person_id' => 'VTOR' . $card->id,
-        ]);
+            $card->update([
+                'person_id' => 'VTOR' . $card->id,
+            ]);
+        }
 
         return $card;
     }
@@ -103,7 +124,7 @@ class AccessCardService
 
     /**
      * 刪除卡片
-     * @param int $card_number
+     * @param int $id
      * @throws RuntimeException
      * @return void
      */

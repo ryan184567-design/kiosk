@@ -8,17 +8,6 @@
     "menus": [
         {
             "portal": "admin",
-            "key": "registration",
-            "title": "訪客登記",
-            "subtitle": "登記訪客資料",
-            "icon": "Menu",
-            "path": "/guest/registration",
-            "permission_code": "api.guest.registration",
-            "group": "group-guest",
-            "sort": 0
-        },
-        {
-            "portal": "admin",
             "key": "approvals",
             "title": "訪客審核",
             "subtitle": "對預約訪客做審核管理",
@@ -26,7 +15,7 @@
             "path": "/guest/approvals",
             "permission_code": "api.guest.approvals",
             "group": "group-guest",
-            "sort": 1
+            "sort": 0
         },
         {
             "portal": "admin",
@@ -37,7 +26,7 @@
             "path": "/guest/records",
             "permission_code": "api.guest.records",
             "group": "group-guest",
-            "sort": 2
+            "sort": 1
         },
         {
             "portal": "admin",
@@ -48,7 +37,7 @@
             "path": "/guest/applies",
             "permission_code": "api.guest.index",
             "group": "group-guest",
-            "sort": 3
+            "sort": 2
         },
         {
             "portal": "admin",
@@ -59,7 +48,7 @@
             "path": "/guest/reports",
             "permission_code": "api.guest.reports",
             "group": "group-guest",
-            "sort": 4
+            "sort": 3
         },
         {
             "portal": "admin",
@@ -70,7 +59,7 @@
             "path": "/guest/slots",
             "permission_code": "api.guest.slotIndex",
             "group": "group-guest",
-            "sort": 5
+            "sort": 4
         },
         {
             "portal": "admin",
@@ -81,7 +70,7 @@
             "path": "/guest/upload",
             "permission_code": "api.guest.dashboardSettingUpdate",
             "group": "group-guest",
-            "sort": 6
+            "sort": 5
         }
     ]
 }
