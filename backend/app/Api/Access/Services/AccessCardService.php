@@ -69,27 +69,16 @@ class AccessCardService
         // 卡片編碼
         $access_number = $this->convert_four_h10d_card($card_number);
 
-        $card = AccessCard::withTrashed()->where('card_number', $card_number)->first();
-        if ($card) {
-            if (! $card->trashed()) {
-                throw new RuntimeException(__('api.access_card.exists'), 409);   // 卡號已存在
-            }
-            $card->restore();
-            $card->update([
-                'status' => 0
-            ]);
-        } else {
-            $card = AccessCard::query()->create([
-                'card_number' => $card_number,
-                'access_number' => $access_number,
-                'status' => 0
-            ]);
+        $card = AccessCard::query()->create([
+            'card_number' => $card_number,
+            'access_number' => $access_number,
+            'status' => 0
+        ]);
 
-            $card->update([
-                'person_id' => 'VTOR' . $card->id,
-            ]);
-        }
-
+        $card->update([
+            'person_id' => 'VTOR' . $card->id,
+        ]);
+        
         return $card;
     }
 
