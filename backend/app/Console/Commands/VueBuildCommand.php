@@ -4,7 +4,7 @@
 File: VueBuildCommand.php
 Author: cliffdean yangtinghui@gmail.com
 Date: 2026-09-12
-Description: 編譯子站前端：前台 Vue 頁面（共用／dedicated）＋子站後台（admin），見 README 6.1～6.3。
+Description: 編譯子站前端：前台 Vue 頁面（共用／dedicated）＋子站後台（admin）＋公司端口（company），見 README 6.1～6.3。
 ***************************************** */
 
 namespace App\Console\Commands;
@@ -16,10 +16,11 @@ use Illuminate\Support\Str;
 
 // 編譯子站前端，見 README 6.1～6.3。
 //
-// 子站前端有兩套：前台（resources/vue_src，可依站 shared/dedicated）與
-// 後台（resources/vue_src_admin，全站共用，固定輸出 public/admin-assets）。
-// 兩套都屬於「子站」，實務上常只記得跑 vue:build 而漏掉 admin:build，
-// 造成後台改動不生效，所以這支指令預設一併建置後台，不需要時用 --no-admin。
+// 子站前端有三套：前台（resources/vue_src，可依站 shared/dedicated）、
+// 後台（resources/vue_src_admin，全站共用，固定輸出 public/admin-assets）、
+// 公司端口（resources/vue_src_company，訪客模組用，全站共用，固定輸出 public/company-assets）。
+// 都屬於「子站」，實務上常只記得跑 vue:build 而漏掉另外兩套，造成改動不生效，
+// 所以這支指令預設一併建置後台與公司端口，不需要時用 --no-admin／--no-company。
 class VueBuildCommand extends Command
 {
     protected $signature = 'vue:build
@@ -27,10 +28,11 @@ class VueBuildCommand extends Command
         {--clean : 清除舊檔案後重新建置（vite 設定一律 emptyOutDir，此參數僅為相容舊文件寫法）}
         {--all-sites : 建置共用前台＋所有 vue_build_mode=dedicated 的站點（CI 用，見 6.3）}
         {--no-admin : 不要一併建置子站後台（admin，public/admin-assets）}
+        {--no-company : 不要一併建置公司端口（company，public/company-assets）}
         {--output= : 覆寫前台輸出目錄（相對專案根目錄，例如 public/vue）；單站部署包用，見 DEPLOY.md 第 6 點}
         {--base= : 搭配 --output 覆寫資源 base 路徑，預設 /vue/}';
 
-    protected $description = '編譯子站前端：前台 Vue 頁面＋子站後台 admin（見 README 6.1～6.3）';
+    protected $description = '編譯子站前端：前台 Vue 頁面＋子站後台 admin＋公司端口 company（見 README 6.1～6.3）';
 
     public function handle(): int
     {
@@ -40,11 +42,19 @@ class VueBuildCommand extends Command
             default => $this->buildOne(null, dedicated: false),
         };
 
-        if ($result !== self::SUCCESS || $this->option('no-admin')) {
+        if ($result !== self::SUCCESS) {
             return $result;
         }
 
-        return $this->buildAdmin();
+        if (! $this->option('no-admin') && $this->buildAdmin() !== self::SUCCESS) {
+            return self::FAILURE;
+        }
+
+        if (! $this->option('no-company')) {
+            return $this->buildCompany();
+        }
+
+        return self::SUCCESS;
     }
 
     // 共用前台＋所有 dedicated 站。共用前台一定要建：shared 站全部吃這一份，
@@ -128,6 +138,19 @@ class VueBuildCommand extends Command
     private function buildAdmin(): int
     {
         return $this->runNpm('admin:build', '子站後台 admin', 'public/admin-assets');
+    }
+
+    // 公司端口（訪客模組各公司帳號登入，見 README 5.9）全站共用一份，--all-sites 也只建一次。
+    // 原始碼不存在時（例如舊版部署包）略過並提示，不讓整個建置失敗。
+    private function buildCompany(): int
+    {
+        if (! is_dir(base_path('resources/vue_src_company'))) {
+            $this->line('沒有 resources/vue_src_company，略過公司端口建置。');
+
+            return self::SUCCESS;
+        }
+
+        return $this->runNpm('company:build', '公司端口 company', 'public/company-assets');
     }
 
     private function runNpm(string $script, string $label, string $outDir, array $env = []): int

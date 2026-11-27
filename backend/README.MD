@@ -51,10 +51,10 @@ npm install
 
 ```powershell
 npm run hq:build
-npm run admin:build
-npm run company:build
-npm run vue:build
+php artisan vue:build
 ```
+
+> `vue:build` 會一次建置子站前台、子站後台（admin）、公司端口（company），見 6.1。
 
 **步驟 3：設定 `.env`**：複製 `.env.example` 為 `.env`，填入以下項目（密碼沒填，seeder 會中斷）：
 
@@ -247,11 +247,11 @@ php artisan swagger:generate --pretty
 **步驟 4：重建前端**
 
 ```powershell
-npm run admin:build
-npm run company:build
+php artisan vue:build
 npm run hq:build
-npm run vue:build
 ```
+
+> `vue:build` 已包含子站前台、子站後台（admin）、公司端口（company）；主站後台（hq）要另外建。
 
 **步驟 5：清除快取**
 
@@ -302,9 +302,9 @@ php artisan optimize:clear
 | 公版 migration | `site:migrate --all` |
 | `SiteBaselineSeeder`（端口、選單分組、設定項、字典） | `site:migrate --all --seed=Database\Seeders\SiteBaselineSeeder` |
 | `.env`／`config/*.php` | `optimize:clear` |
-| 子站後台（`vue_src_admin`） | `npm run admin:build` |
-| 公司端口（`vue_src_company`） | `npm run company:build` |
-| 子站前台（`vue_src`） | `php artisan vue:build --clean`（會連同子站後台一起建） |
+| 子站後台（`vue_src_admin`） | `npm run admin:build`（只建這一套，比較快） |
+| 公司端口（`vue_src_company`） | `npm run company:build`（只建這一套，比較快） |
+| 子站前台（`vue_src`） | `php artisan vue:build --clean`（會連同子站後台、公司端口一起建） |
 | composer／npm 套件 | `composer install`／`npm install`，lock 檔一併提交 |
 
 > 上表的 artisan 指令都要加 `php artisan` 前綴。
@@ -537,8 +537,11 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 | Blade 資產 | `resources/css`、`resources/js` | `npm run dev` | `npm run build` | `public/build` |
 
 - 改了哪套就重建哪套；新環境與每次部署都要重建。
-- `php artisan vue:build`（含 `--site=`、`--all-sites`）**預設會一併建置子站後台**，不需要時加 `--no-admin`。
-- 只跑 `npm run vue:build` 不會建置後台，`resources/vue_src_admin` 的改動（例如訪客管理頁）不會生效。
+- `php artisan vue:build`（含 `--site=`、`--all-sites`）**預設會一併建置子站後台（admin）與公司端口（company）**：
+  - 不需要建置後台時加 `--no-admin`。
+  - 不需要建置公司端口時加 `--no-company`。
+  - 所以 `php artisan vue:build --site=default` 可以取代 `npm run admin:build` ＋ `npm run company:build`（另外還會建置前台）。
+- 只跑 `npm run vue:build` **只會建置前台**，後台與公司端口的改動不會生效；要一次建齊請用 `php artisan vue:build`。
 
 ### 6.2 子站前台：共用還是獨立
 
@@ -554,9 +557,9 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 | 用途 | 指令 |
 | --- | --- |
 | 幫 vendor_a 新增專屬頁面 | `php artisan vue:page:make vendor_a order-dashboard` |
-| 建置共用前台＋子站後台 | `php artisan vue:build --clean` |
-| 建置 vendor_a 的獨立前台＋子站後台 | `php artisan vue:build --site=vendor_a --clean` |
-| 建置共用前台＋所有獨立前台＋子站後台（CI 用） | `php artisan vue:build --all-sites` |
+| 建置共用前台＋子站後台＋公司端口 | `php artisan vue:build --clean` |
+| 建置 vendor_a 的獨立前台＋子站後台＋公司端口 | `php artisan vue:build --site=vendor_a --clean` |
+| 建置共用前台＋所有獨立前台＋子站後台＋公司端口（CI 用） | `php artisan vue:build --all-sites` |
 
 - `vue:page:make` 產生的檔案在 `site-overrides/vendor_a/pages/OrderDashboard.vue`。
 - `--site=vendor_a` 輸出到 `public/vue-sites/vendor_a`；如果該站其實是共用前台，會自動改建 `public/vue`。
@@ -598,11 +601,10 @@ php artisan site:migrate --all
 ```powershell
 npm ci
 npm run hq:build
-npm run company:build
 php artisan vue:build --all-sites
 ```
 
-> `vue:build --all-sites` 會建置共用前台、所有獨立前台站與子站後台（admin）。有用到 `@vite` 的 Blade 頁，另外再跑 `npm run build`。
+> `vue:build --all-sites` 會建置共用前台、所有獨立前台站、子站後台（admin）與公司端口（company）。有用到 `@vite` 的 Blade 頁，另外再跑 `npm run build`。
 
 **步驟 4：建立快取**
 
@@ -681,7 +683,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Auth
 | 症狀 | 處理 |
 | --- | --- |
 | 指令失敗 | 確認 `php -v` 是 8.2.29、`.env` 的 `DB_*` 正確、MySQL 已啟動 |
-| `/hq`、`/admin`、`/company` 404 | SPA 沒建置：跑對應的 `npm run hq:build`／`admin:build`／`company:build` |
+| `/hq`、`/admin`、`/company` 404 | SPA 沒建置：`/hq` 跑 `npm run hq:build`；`/admin`、`/company` 跑 `php artisan vue:build`（或單獨 `npm run admin:build`／`company:build`） |
 | 登入後每支 API 都失敗、`Key material must not be empty` | JWT 密鑰沒設：跑 `php artisan jwt:secret`（機器接口另需 `FACTORY_JWT_SECRET`）；log 在 `storage/logs/laravel.log` |
 | 首頁正常、一登入就 500 | 多半是 `site_current` 連線問題，或誤用 `env()`（DEVELOP.MD 6.4） |
 | 畫面空白、主控台有 CSP violation | 嚴格 CSP 的預期行為；常見原因是 `:style` 動態綁定（DEVELOP.MD 4.2.1） |
