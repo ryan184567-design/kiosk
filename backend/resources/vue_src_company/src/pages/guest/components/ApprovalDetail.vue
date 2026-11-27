@@ -13,7 +13,7 @@
         </h4>
         <dl class="apd__list">
           <div class="apd__item"><dt>訪客姓名</dt><dd>{{ visitor.name || '—' }}</dd></div>
-          <div class="apd__item"><dt>公司名稱</dt><dd>{{ visitor.company_name || '—' }}</dd></div>
+          <div class="apd__item"><dt>訪客公司</dt><dd>{{ visitor.company_name || '—' }}</dd></div>
           <div class="apd__item"><dt>職稱</dt><dd>{{ visitor.title || '—' }}</dd></div>
           <div class="apd__item"><dt>手機號碼</dt><dd>{{ visitor.phone || '—' }}</dd></div>
           <div class="apd__item"><dt>Email</dt><dd>{{ visitor.email || '—' }}</dd></div>

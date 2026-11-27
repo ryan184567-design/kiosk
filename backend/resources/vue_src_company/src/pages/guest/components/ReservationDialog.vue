@@ -88,7 +88,7 @@
         <el-form-item label="來訪者姓名" prop="name">
           <el-input v-model="draft.name" maxlength="100" />
         </el-form-item>
-        <el-form-item label="公司名稱" prop="company_name">
+        <el-form-item label="訪客公司" prop="company_name">
           <el-input v-model="draft.company_name" maxlength="150" />
         </el-form-item>
         <el-form-item label="職稱" prop="title">
@@ -107,7 +107,7 @@
       <el-table :data="visitors" size="small" class="rsv-visitors" empty-text="尚未新增來訪者，請填寫上方資料後按「新增來訪者」">
         <el-table-column type="index" label="#" width="56" />
         <el-table-column prop="name" label="來訪者姓名" min-width="110" />
-        <el-table-column prop="company_name" label="公司名稱" min-width="170" />
+        <el-table-column prop="company_name" label="訪客公司" min-width="170" />
         <el-table-column label="職稱" min-width="110">
           <template #default="{ row }">{{ row.title || '—' }}</template>
         </el-table-column>
@@ -272,7 +272,7 @@ const baseRules = {
 };
 const visitorRules = {
   name: [{ required: true, message: '請輸入來訪者姓名', trigger: 'blur' }],
-  company_name: [{ required: true, message: '請輸入公司名稱', trigger: 'blur' }],
+  company_name: [{ required: true, message: '請輸入訪客公司', trigger: 'blur' }],
   phone: [
     { required: true, message: '請輸入手機號碼', trigger: 'blur' },
     { pattern: PHONE_PATTERN, message: PHONE_MESSAGE, trigger: 'blur' },

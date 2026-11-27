@@ -49,7 +49,7 @@
           <el-table :data="detail.guests" size="small" class="rsv-visitors" empty-text="沒有來訪者資料">
             <el-table-column type="index" label="#" width="56" />
             <el-table-column prop="name" label="來訪者姓名" min-width="110" />
-            <el-table-column prop="company_name" label="公司名稱" min-width="170" />
+            <el-table-column prop="company_name" label="訪客公司" min-width="170" />
             <el-table-column label="職稱" min-width="100">
               <template #default="{ row }">{{ row.title || '—' }}</template>
             </el-table-column>
