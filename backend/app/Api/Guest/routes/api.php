@@ -9,9 +9,36 @@ use App\Api\Guest\Controllers\GuestSlotController;
 use App\Api\Guest\Controllers\FactoryGuestApplyController;
 use App\Api\Guest\Controllers\FactoryGuestKioskController;
 use App\Api\Guest\Controllers\GuestDashboardReportController;
+use App\Api\Guest\Controllers\GuestCompanyController;
+use App\Api\Guest\Controllers\GuestCompanyAdminController;
+use App\Api\Guest\Middleware\EnsureGuestCompanyScope;
 
 
-Route::middleware(['module:guest', 'jwt.auth'])->prefix('guest')->group(function () {
+// EnsureGuestCompanyScope 必須在 jwt.auth 之後：登入 company 端口時套上「只看自己公司」的資料範圍，
+// 同一組 API admin 端口看全部、company 端口只看自己公司（見 GuestApply::booted）。
+Route::middleware(['module:guest', 'jwt.auth', EnsureGuestCompanyScope::class])->prefix('guest')->group(function () {
+    // 公司端口（company）專用：本公司資訊、審核設定、員工管理
+    Route::prefix('company')->group(function () {
+        Route::middleware('permission.api:api.guest.companyProfile')->get('/', [GuestCompanyController::class, 'companyProfile']);
+        Route::middleware('permission.api:api.guest.companySettingUpdate')->put('/setting', [GuestCompanyController::class, 'companySettingUpdate']);
+        Route::middleware('permission.api:api.guest.employeeIndex')->get('/employees', [GuestCompanyController::class, 'employeeIndex']);
+        Route::middleware('permission.api:api.guest.employeeStore')->post('/employees', [GuestCompanyController::class, 'employeeStore']);
+        Route::middleware('permission.api:api.guest.employeeUpdate')->put('/employees/{id}', [GuestCompanyController::class, 'employeeUpdate'])->whereNumber('id');
+        Route::middleware('permission.api:api.guest.employeeResetPassword')->put('/employees/{id}/password', [GuestCompanyController::class, 'employeeResetPassword'])->whereNumber('id');
+        Route::middleware('permission.api:api.guest.employeeDestroy')->delete('/employees/{id}', [GuestCompanyController::class, 'employeeDestroy'])->whereNumber('id');
+    });
+
+    // 後台公司帳號管理（admin 端口）
+    Route::prefix('companies')->group(function () {
+        Route::middleware('permission.api:api.guest.companyIndex')->get('/', [GuestCompanyAdminController::class, 'companyIndex']);
+        Route::middleware('permission.api:api.guest.companyApprovalUpdate')->put('/{doorplateId}/setting', [GuestCompanyAdminController::class, 'companyApprovalUpdate'])->whereNumber('doorplateId');
+        Route::middleware('permission.api:api.guest.companyMemberIndex')->get('/{doorplateId}/members', [GuestCompanyAdminController::class, 'companyMemberIndex'])->whereNumber('doorplateId');
+        Route::middleware('permission.api:api.guest.companyMemberStore')->post('/{doorplateId}/members', [GuestCompanyAdminController::class, 'companyMemberStore'])->whereNumber('doorplateId');
+        Route::middleware('permission.api:api.guest.companyMemberUpdate')->put('/{doorplateId}/members/{id}', [GuestCompanyAdminController::class, 'companyMemberUpdate'])->whereNumber(['doorplateId', 'id']);
+        Route::middleware('permission.api:api.guest.companyMemberResetPassword')->put('/{doorplateId}/members/{id}/password', [GuestCompanyAdminController::class, 'companyMemberResetPassword'])->whereNumber(['doorplateId', 'id']);
+        Route::middleware('permission.api:api.guest.companyMemberDestroy')->delete('/{doorplateId}/members/{id}', [GuestCompanyAdminController::class, 'companyMemberDestroy'])->whereNumber(['doorplateId', 'id']);
+    });
+
     // 預約管理
     Route::prefix('applies')->group(function () {
         Route::middleware('permission.api:api.guest.index')->get('/', [GuestApplyController::class, 'index']);

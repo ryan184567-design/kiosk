@@ -121,15 +121,55 @@ export function isLoggedIn() {
   return !!auth.token;
 }
 
-export async function login(username, password) {
+// 走錯登入入口時可以自動切換過去的端口：端口代碼 → 該端口 SPA 的網址片段與 token 儲存鍵
+// （要與該端口自己的 stores/auth.js 一致，例如公司端口見 resources/vue_src_company/src/stores/auth.js）。
+const SWITCHABLE_PORTALS = {
+  company: { label: '公司端口', path: 'company', storageKey: 'company_access_token' },
+};
+// 後端 ErrorCode::PORTAL_MISMATCH：帳號密碼正確，但帳號不屬於這個端口，data.portal_keys 是它能登入的端口。
+const PORTAL_MISMATCH = 20018;
+
+async function requestLogin(username, password, portalKey) {
   const res = await fetch('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...sitePrefixHeaders() },
-    body: JSON.stringify({ username, password, portal_key: PORTAL_KEY }),
+    body: JSON.stringify({ username, password, portal_key: portalKey }),
   });
-  const body = await res.json();
+
+  return res.json();
+}
+
+// 改登入另一個端口，把 token 存到該端口 SPA 讀取的位置後整頁跳過去（保留路徑前綴進站的站點代碼）。
+async function switchToPortal(portalKey, username, password) {
+  const target = SWITCHABLE_PORTALS[portalKey];
+  const body = await requestLogin(username, password, portalKey);
 
   if (!body.status) {
+    throw new Error(body.error_message || '登入失敗');
+  }
+
+  localStorage.setItem(target.storageKey, body.data.access_token);
+  const first = window.location.pathname.split('/').filter(Boolean)[0];
+  const prefix = first && first !== 'admin' ? `/${first}` : '';
+  window.location.assign(`${prefix}/${target.path}/`);
+
+  return { redirected: true, portalLabel: target.label };
+}
+
+// 登入成功回傳後端 data；若帳號屬於其他端口（例如公司帳號），會自動改登入該端口並整頁跳轉，
+// 此時回傳 { redirected: true }，呼叫端不要再做後續動作（讀個人資料、切換路由）。
+export async function login(username, password) {
+  const body = await requestLogin(username, password, PORTAL_KEY);
+
+  if (!body.status) {
+    const switchTo = body.error_code === PORTAL_MISMATCH
+      ? (body.data?.portal_keys || []).find((key) => SWITCHABLE_PORTALS[key])
+      : null;
+
+    if (switchTo) {
+      return switchToPortal(switchTo, username, password);
+    }
+
     throw new Error(body.error_message || '登入失敗');
   }
 

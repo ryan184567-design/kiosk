@@ -12,6 +12,8 @@ namespace App\Api\Guest\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Api\DataSetting\Models\Doorplate;
+use App\Api\Guest\Support\GuestCompanyContext;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -48,7 +50,7 @@ class GuestApply extends Model
         'is_email_notify', 'is_sms_notify', 'is_auto_remind', 'remind_time',
         'consent_form', 'id_card_slot_no',
         'qr_code', 'fast_pass_code', 'access_card_no',
-        'check_in_at', 'check_out_at', 'reservation_status',
+        'check_in_at', 'check_out_at', 'reservation_status', 'created_by',
     ];
 
     // visit_start_time／visit_end_time 是 MySQL time 欄位，讀出來是 "HH:mm:ss" 字串，不做 cast；
@@ -65,7 +67,22 @@ class GuestApply extends Model
         'check_in_at' => 'datetime',
         'check_out_at' => 'datetime',
         'reservation_status' => 'integer',
+        'created_by' => 'integer',
     ];
+
+    // 公司端口的資料隔離：登入 company 端口時（GuestCompanyContext 有值），所有預約單查詢
+    // 一律只看得到自己公司（門牌）的資料——列表、詳情、修改、審核、訪客記錄、統計都經過
+    // 這裡，不必在每支 Service 各自加條件。admin 端口、訪客機、CLI 不受影響。
+    protected static function booted(): void
+    {
+        static::addGlobalScope('guest_company', function (Builder $query) {
+            $doorplateId = GuestCompanyContext::doorplateId();
+
+            if ($doorplateId !== null) {
+                $query->where($query->getModel()->qualifyColumn('doorplate_id'), $doorplateId);
+            }
+        });
+    }
 
     /** 來訪者明細（SoftDeletes 預設只取未刪除的） */
     public function guests(): HasMany

@@ -1,0 +1,59 @@
+/* *****************************************
+File: base.css
+Author: Callum
+Date: 2026-11-19
+Description: 子站後臺全域基礎樣式：統一所有 hover 與過渡效果為 ease 300ms。
+***************************************** */
+
+/* 過渡統一規則：任何 hover／過渡效果預設都用 ease、300ms。
+   自己寫的樣式請用 var(--app-transition-duration) 與 var(--app-transition-timing)，
+   不要再寫死 0.2s、cubic-bezier 之類的數字，之後要整體調整只改這裡。 */
+:root{
+  --app-transition-duration: 300ms;
+  --app-transition-timing: ease;
+
+  /* Element Plus 所有元件的過渡都吃這四個變數，覆蓋後元件一起跟著統一。
+     這支檔案必須在 element-plus/dist/index.css 之後載入（見 main.js）。 */
+  --el-transition-duration: var(--app-transition-duration);
+  --el-transition-duration-fast: var(--app-transition-duration);
+  --el-transition-function-ease-in-out-bezier: var(--app-transition-timing);
+  --el-transition-function-fast-bezier: var(--app-transition-timing);
+
+  /* 主色：依設計稿估算的藍色，只是「預設值」。
+     站臺設定的「主題色」（頁面設置 theme_color）會在執行時由 stores/auth.js 直接寫到
+     <html> 上蓋過這裡（見 applyRuntimeBranding），所以實際顯示的是後臺設定的顏色。 */
+  --el-color-primary: #1a62ff;
+
+  /* Element Plus 內建的淺色／深色衍生色是寫死的 #409eff 系列，主色一換就會對不上
+     （hover、選取底色會是舊的淺藍）。這裡改成由主色即時計算，執行時換主色也會跟著變。 */
+  --el-color-primary-light-3: color-mix(in srgb, var(--el-color-primary) 70%, white);
+  --el-color-primary-light-5: color-mix(in srgb, var(--el-color-primary) 50%, white);
+  --el-color-primary-light-7: color-mix(in srgb, var(--el-color-primary) 30%, white);
+  --el-color-primary-light-8: color-mix(in srgb, var(--el-color-primary) 20%, white);
+  --el-color-primary-light-9: color-mix(in srgb, var(--el-color-primary) 10%, white);
+  --el-color-primary-dark-2: color-mix(in srgb, var(--el-color-primary) 80%, black);
+
+  /* 圖表色盤（統計報表）：圖表（canvas）與 HTML 圖例都讀這幾個變數，顏色只在這裡改。 */
+  --chart-1: #1d6bff;
+  --chart-2: #2fbf9b;
+  --chart-3: #8b8fb8;
+  --chart-4: #ffa940;
+  --chart-5: #b37feb;
+  /* 6～8 是 2026-11-25 為了來訪事由（字典有 8 項）補的：設計稿只有前 5 色，這 3 色用色盲模擬驗證過，
+     與前 5 色兩兩都分得開（色盲模擬 ΔE ≥ 12、一般視覺 ΔE ≥ 16）。 */
+  --chart-6: #9c8a00;
+  --chart-7: #862e9c;
+  --chart-8: #c2255c;
+}
+
+/* 自訂的連結、按鈕（不是 Element Plus 元件的那種）也要有同樣的過渡，
+   否則 hover 換色會瞬間跳變。只列會因 hover／focus 改變的屬性，不用 all，
+   避免寬高、位置變動時也被動畫拖慢。 */
+a,
+button,
+[role='button'],
+.app-transition {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: var(--app-transition-duration);
+  transition-timing-function: var(--app-transition-timing);
+}

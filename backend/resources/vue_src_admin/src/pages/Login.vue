@@ -26,6 +26,7 @@ Description: 管理後台登入頁，固定登入 admin 端口，見 README 7.2�
 
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import { ElMessage } from 'element-plus';
 import { login, loadProfile } from '../stores/auth';
 
 const router = useRouter();
@@ -39,7 +40,12 @@ async function handleSubmit() {
   submitting.value = true;
 
   try {
-    await login(username.value, password.value);
+    const result = await login(username.value, password.value);
+    // 帳號屬於其他端口（例如公司帳號）：已自動改登入該端口並整頁跳轉，這裡不再往下做。
+    if (result?.redirected) {
+      ElMessage.info(`此帳號屬於${result.portalLabel}，正在為您切換…`);
+      return;
+    }
     await loadProfile();
     router.push({ name: 'dashboard' });
   } catch (e) {

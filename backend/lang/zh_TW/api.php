@@ -19,6 +19,7 @@ return [
         'token_replaced_by_new_login' => '此帳號已於其他裝置登入',
         'module_not_enabled' => '模塊未開通',
         'portal_admin_only' => '此端口僅開放端口管理員登入',
+        'portal_mismatch' => '此帳號不能登入這個端口，請改用所屬端口的登入入口',
         'resource_not_found' => '找不到資源',
         'system_error' => '系統異常',
         'unknown_error' => '未知錯誤',
@@ -137,6 +138,21 @@ return [
         'visitor_count_mismatch' => '來訪者名單共 :count 位，超過來訪人數 :max 人。',
         'no_generate_failed' => '預約單號產生失敗，請稍後再試。',
         'not_checkable' => '此預約單目前狀態不可報到。',
+        'not_pending' => '此預約單不是待審核狀態，無法核准或拒絕。',
+    ],
+
+    // 訪客模組公司端口（company）
+    'guest_company' => [
+        'not_member' => '此帳號未隸屬任何公司，無法使用公司端口，請聯絡公司管理員。',
+        'company_portal_only' => '此功能只能在公司端口使用。',
+        'company_admin_only' => '只有公司管理員可以執行此操作。',
+        'company_not_found' => '找不到此公司（門牌）。',
+        'member_not_found' => '找不到此公司成員。',
+        'cannot_remove_self' => '不能移除自己的帳號。',
+        'cannot_manage_admin' => '公司管理員帳號只能由後台管理。',
+        'last_admin' => '每家公司至少要保留一位公司管理員。',
+        'portal_missing' => '尚未建立公司端口（company），請重跑 baseline seed（site:migrate --seed=Database\\Seeders\\SiteBaselineSeeder）。',
+        'role_missing' => '公司端口缺少「:name」角色，請重跑 baseline seed（site:migrate --seed=Database\\Seeders\\SiteBaselineSeeder）。',
     ],
 
     'guest_record' => [

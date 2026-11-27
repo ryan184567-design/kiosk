@@ -10,7 +10,9 @@
         "hq:dev": "vite --config vite.hq.config.js",
         "hq:build": "vite build --config vite.hq.config.js",
         "admin:dev": "vite --config vite.admin.config.js",
-        "admin:build": "vite build --config vite.admin.config.js"
+        "admin:build": "vite build --config vite.admin.config.js",
+        "company:dev": "vite --config vite.company.config.js",
+        "company:build": "vite build --config vite.company.config.js"
     },
     "dependencies": {
         "@element-plus/icons-vue": "^2.3.2",

@@ -34,9 +34,9 @@ abstract class BaseApiController extends Controller
         return ApiResponder::success($data, $status);
     }
 
-    protected function fail(int $errorCode, ?string $message = null, ?int $status = null)
+    protected function fail(int $errorCode, ?string $message = null, ?int $status = null, array $data = [])
     {
-        return ApiResponder::fail($errorCode, $message, $status);
+        return ApiResponder::fail($errorCode, $message, $status, $data);
     }
 
     // 見 README 7.2：登入 session 的權限判斷皆以 portal_id/role_id 為準，

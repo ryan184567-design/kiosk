@@ -64,7 +64,23 @@ class GuestApplyService
         return $query;
     }
 
-    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, int $reservation_type, int $reservation_status): GuestApply
+    /**
+     * 事前預約建立後的審核狀態。
+     * - 公司員工從公司端口建立（$byCompanyEmployee=true）：依所屬公司（門牌）的審核開關，
+     *   需要審核 → 0 待審核；免審核 → 10 已核准（自動通過）。
+     * - 其他來源（訪客申請、後台建立）：一律 0 待審核，不受公司開關影響，
+     *   由受訪公司的公司管理員／審核者（或後台）審核。
+     */
+    public function initialStatus(int $doorplate_id, bool $byCompanyEmployee): int
+    {
+        if ($byCompanyEmployee && ! $this->approvalRequired($doorplate_id)) {
+            return GuestApply::STATUS_APPROVED;
+        }
+
+        return GuestApply::STATUS_PENDING;
+    }
+
+    public function create(int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, int $reservation_type, int $reservation_status, ?int $created_by = null): GuestApply
     {
         $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count, $visitors);
@@ -89,6 +105,7 @@ class GuestApplyService
             'reservation_type' => $reservation_type,
             'reservation_status' => $reservation_status,
             'consent_form' => 0,
+            'created_by' => $created_by,
         ]);
 
         foreach ($visitors as $v) {
@@ -101,6 +118,12 @@ class GuestApplyService
                 'email' => $v['email'] ?? null,
                 'plate_number' => $v['plate_number'] ?? null,
             ]);
+        }
+
+        // 公司設定免審核、事前預約直接核准：跟人工審核通過一樣上報儀錶板。
+        // 現場預約（訪客機建立，本來就直接核准）維持原本不上報的行為。
+        if ($reservation_type === GuestApply::TYPE_ADVANCE && $reservation_status === GuestApply::STATUS_APPROVED) {
+            DashboardReporter::approved($apply);
         }
 
         return $apply;
@@ -126,7 +149,7 @@ class GuestApplyService
     /**
      * 修改預約單：整批覆寫來訪者明細；不重新產生單號與驗證碼。
      */
-    public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors): GuestApply
+    public function update(int $id, int $doorplate_id, string $date, string $start_time, string $end_time, int $visitor_count, string $host_name, int $purpose, string $notes, bool $email_notify, bool $sms_notify, bool $reminder_enabled, int $reminder_time, array $visitors, bool $byCompanyEmployee = false): GuestApply
     {
         $this->assertTimeRange($start_time, $end_time);
         $this->assertVisitorCount((int) $visitor_count , $visitors);
@@ -136,6 +159,10 @@ class GuestApplyService
             throw new RuntimeException(__('api.guest_apply.not_found'));
         }
         $this->assertMutable($apply, self::CANCELLABLE_STATUSES);
+
+        // 修改後要不要重新審核：只有公司員工從公司端口修改、且公司設定免審核時才直接「修改已核准」；
+        // 其他來源的修改一律回到「修改待審核」（同 initialStatus 的規則）。
+        $autoApproved = $byCompanyEmployee && ! $this->approvalRequired($doorplate_id);
 
         $apply->update([
             'doorplate_id' => $doorplate_id,
@@ -151,7 +178,7 @@ class GuestApplyService
             'is_auto_remind' => (bool) ($reminder_enabled ?? false),
             // 沒開啟提醒時不保留分鐘數，避免殘留舊值
             'remind_time' => ! empty($reminder_enabled) ? ($reminder_time ?? null) : null,
-            'reservation_status' => GuestApply::STATUS_EDIT_PENDING,
+            'reservation_status' => $autoApproved ? GuestApply::STATUS_EDIT_APPROVED : GuestApply::STATUS_EDIT_PENDING,
         ]);
 
         Guest::query()->where('guest_applies_id', $apply->id)->delete();
@@ -168,7 +195,36 @@ class GuestApplyService
             ]);
         }
 
+        // 免審核自動「修改已核准」：跟人工審核通過修改一樣上報儀錶板。
+        if ($autoApproved) {
+            DashboardReporter::modified($apply);
+        }
+
         return $apply;
+    }
+
+    /**
+     * 公司端口審核前檢查：只有待審核（0）／修改待審核（1）的預約單可以核准或拒絕。
+     * （公司範圍由 GuestApply 全域範圍處理，別家公司的單在這裡就會是找不到。）
+     */
+    public function assertPendingApproval(int $id): void
+    {
+        $apply = GuestApply::query()->find($id);
+        if (! $apply) {
+            throw new RuntimeException(__('api.guest_apply.not_found'), 404);
+        }
+
+        if (! in_array($apply->reservation_status, [GuestApply::STATUS_PENDING, GuestApply::STATUS_EDIT_PENDING], true)) {
+            throw new RuntimeException(__('api.guest_apply.not_pending'));
+        }
+    }
+
+    /** 受訪公司（門牌）是否需要審核；門牌找不到（含已刪除）時保守視為需要審核 */
+    private function approvalRequired(int $doorplate_id): bool
+    {
+        $required = Doorplate::query()->withTrashed()->whereKey($doorplate_id)->value('approval_required');
+
+        return $required === null ? true : (bool) $required;
     }
 
     public function delete(int $id): void
