@@ -75,8 +75,13 @@
           <el-table-column label="訪客姓名" width="100">
             <template #default="{ row }">{{ row.guests?.[0]?.name || '—' }}</template>
           </el-table-column>
-          <el-table-column label="公司名稱" min-width="170">
+          <!-- 公司端口：這裡是「訪客自己所屬的公司」，受訪公司一律是本公司（後端已限定），
+               原本標「公司名稱」容易被誤會成別家公司的資料外漏，所以改名並補上受訪人。 -->
+          <el-table-column label="訪客公司" min-width="170">
             <template #default="{ row }">{{ row.guests?.[0]?.company_name || '—' }}</template>
+          </el-table-column>
+          <el-table-column label="受訪人" width="110">
+            <template #default="{ row }">{{ row.host_name || '—' }}</template>
           </el-table-column>
           <el-table-column label="來訪時間" min-width="140">
             <template #default="{ row }">{{ formatVisitSlot(row) }}</template>

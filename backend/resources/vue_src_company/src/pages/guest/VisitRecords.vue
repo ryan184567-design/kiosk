@@ -19,8 +19,8 @@
           <el-input v-model="filters.guest_name" placeholder="請輸入姓名" clearable class="vrc__input" @keyup.enter="handleSearch" />
         </label>
         <label class="vrc__field">
-          <span class="vrc__label">公司名稱</span>
-          <el-input v-model="filters.company_name" placeholder="請輸入公司名稱" clearable class="vrc__input" @keyup.enter="handleSearch" />
+          <span class="vrc__label">訪客公司</span>
+          <el-input v-model="filters.company_name" placeholder="請輸入訪客公司" clearable class="vrc__input" @keyup.enter="handleSearch" />
         </label>
         <label class="vrc__field">
           <span class="vrc__label">來訪事由</span>
@@ -84,7 +84,7 @@
           <el-table-column label="訪客姓名" width="100">
             <template #default="{ row }">{{ row.guests?.[0]?.name || '—' }}</template>
           </el-table-column>
-          <el-table-column label="公司名稱" min-width="170">
+          <el-table-column label="訪客公司" min-width="170">
             <template #default="{ row }">{{ row.guests?.[0]?.company_name || '—' }}</template>
           </el-table-column>
           <el-table-column label="來訪事由" min-width="110">
