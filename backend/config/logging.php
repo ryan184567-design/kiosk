@@ -59,9 +59,11 @@ return [
 
     'channels' => [
 
+        // 預設改用 daily：每天一個檔案（laravel-YYYY-MM-DD.log），只保留 LOG_DAILY_DAYS 天，
+        // 避免單一 laravel.log 無限長大。.env 的 LOG_STACK 會覆蓋這個預設值。
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            'channels' => explode(',', (string) env('LOG_STACK', 'daily')),
             'ignore_exceptions' => false,
         ],
 
@@ -72,11 +74,12 @@ return [
             'replace_placeholders' => true,
         ],
 
+        // 實際檔名是 laravel-YYYY-MM-DD.log；超過 days 天的舊檔會在寫入新日誌時自動刪除。
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
-            'days' => env('LOG_DAILY_DAYS', 14),
+            'days' => (int) env('LOG_DAILY_DAYS', 15),
             'replace_placeholders' => true,
         ],
 

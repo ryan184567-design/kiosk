@@ -108,7 +108,7 @@ php artisan route:cache      # 路由快取（Laravel 12 已支援含閉包的�
 
 - `bootstrap/cache` 目錄必須可寫（見第 4 點），否則請求會直接 500。
 - 在 Windows 上，若同時有多個請求一起重建，`rename()` 會因為檔案被另一個行程佔用而失敗，
-  症狀是頁面 500、`storage/logs/laravel.log` 出現
+  症狀是頁面 500、`storage/logs/laravel-日期.log` 出現
   `rename(...bootstrap\cache\pacXXXX.tmp, ...bootstrap\cache/packages.php): 存取被拒 (code: 5)`。
   這是「清完快取後又被併發請求同時重建」造成的一次性問題，不是每次都會發生，但一發生就很難查。
 

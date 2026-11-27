@@ -684,7 +684,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Auth
 | --- | --- |
 | 指令失敗 | 確認 `php -v` 是 8.2.29、`.env` 的 `DB_*` 正確、MySQL 已啟動 |
 | `/hq`、`/admin`、`/company` 404 | SPA 沒建置：`/hq` 跑 `npm run hq:build`；`/admin`、`/company` 跑 `php artisan vue:build`（或單獨 `npm run admin:build`／`company:build`） |
-| 登入後每支 API 都失敗、`Key material must not be empty` | JWT 密鑰沒設：跑 `php artisan jwt:secret`（機器接口另需 `FACTORY_JWT_SECRET`）；log 在 `storage/logs/laravel.log` |
+| 登入後每支 API 都失敗、`Key material must not be empty` | JWT 密鑰沒設：跑 `php artisan jwt:secret`（機器接口另需 `FACTORY_JWT_SECRET`）；log 在 `storage/logs/laravel-日期.log`（每天一個檔，保留 15 天） |
 | 首頁正常、一登入就 500 | 多半是 `site_current` 連線問題，或誤用 `env()`（DEVELOP.MD 6.4） |
 | 畫面空白、主控台有 CSP violation | 嚴格 CSP 的預期行為；常見原因是 `:style` 動態綁定（DEVELOP.MD 4.2.1） |
 | 改設定沒生效 | `php artisan optimize:clear` |
