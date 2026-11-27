@@ -61,25 +61,37 @@ class AccessCardService
      */
     public function add(int $card_number)
     {
-        $exists = AccessCard::query()->where('card_number', $card_number)->exists();
-        if ($exists) {
-            throw new RuntimeException(__('api.access.has_card'), 404);
-        }
+        return (new AccessCard)->getConnection()->transaction(function () use ($card_number) {
+            // 含軟刪除一起找：已刪除的卡片要還原，不能重新新增（卡號的唯一索引仍佔著）
+            $card = AccessCard::withTrashed()->where('card_number', $card_number)->first();
 
-        // 卡片編碼
-        $access_number = $this->convert_four_h10d_card($card_number);
+            if ($card) {
+                if (! $card->trashed()) {
+                    throw new RuntimeException(__('api.access.has_card'), 409);   // 卡號已存在
+                }
 
-        $card = AccessCard::query()->create([
-            'card_number' => $card_number,
-            'access_number' => $access_number,
-            'status' => 0
-        ]);
+                // 還原後重設為空閒，並清掉上次使用留下的資料
+                $card->restore();
+                $card->update([
+                    'status' => AccessCard::STATUS_FREE,
+                    'person_id' => 'VTOR'. $card->id,
+                    'reserve_date' => null,
+                ]);
 
-        $card->update([
-            'person_id' => 'VTOR' . $card->id,
-        ]);
-        
-        return $card;
+                return $card;
+            }
+
+            $card = AccessCard::query()->create([
+                'card_number' => $card_number,
+                'access_number' => $this->convert_four_h10d_card($card_number),   // 卡片編碼
+                'status' => AccessCard::STATUS_FREE,
+            ]);
+
+            // person_id 要用到自動產生的 id，所以建立後再補（同一個交易內）
+            $card->update(['person_id' => 'VTOR'.$card->id]);
+
+            return $card;
+        });
     }
 
     /**

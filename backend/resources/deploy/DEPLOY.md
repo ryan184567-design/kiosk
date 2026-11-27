@@ -72,15 +72,16 @@ php artisan migrate --path=database/sites/{{site_code}}/migrations --force   # �
 ## 6. 前端建置（Node.js）
 
 部署包含前端原始碼與 `package.json`／`package-lock.json`，但**不含 `node_modules/`**，也不保證附帶編譯產物
-（`public/vue`、`public/admin-assets` 在開發庫的 `.gitignore` 內）。現場需有 Node.js 18+，並執行：
+（`public/vue`、`public/admin-assets`、`public/company-assets` 在開發庫的 `.gitignore` 內）。現場需有 Node.js 18+，並執行：
 
 ```bash
 npm ci
 npm run admin:build      # 子站後台 → public/admin-assets（/admin）
+npm run company:build    # 公司端口 → public/company-assets（/company，訪客模組各公司帳號登入）
 npm run vue:build        # 前台共用建置 → public/vue
 ```
 
-- `{{vue_build_mode}}` 為 `shared`（Tier 1/2）：只需上面兩行。
+- `{{vue_build_mode}}` 為 `shared`（Tier 1/2）：只需上面三行。
 - `{{vue_build_mode}}` 為 `dedicated`（Tier 3）：前台改用獨立建置，並輸出到 `public/vue`：
 
 ```bash
@@ -88,7 +89,7 @@ php artisan vue:build --site={{site_code}} --output=public/vue
 ```
 
 - 單站部署包**沒有主站後台**（`hq`），不要執行 `npm run hq:build`。
-- 若 `/admin` 出現 404，通常是 `admin:build` 沒跑（見 7.1）。
+- 若 `/admin` 出現 404，通常是 `admin:build` 沒跑；`/company` 出現 404 則是 `company:build` 沒跑（見 7.1）。
 
 ## 7. 上線前最後一步
 
@@ -107,7 +108,7 @@ php artisan route:cache      # 路由快取（Laravel 12 已支援含閉包的�
 
 - `bootstrap/cache` 目錄必須可寫（見第 4 點），否則請求會直接 500。
 - 在 Windows 上，若同時有多個請求一起重建，`rename()` 會因為檔案被另一個行程佔用而失敗，
-  症狀是頁面 500、`storage/logs/laravel.log` 出現
+  症狀是頁面 500、`storage/logs/laravel-日期.log` 出現
   `rename(...bootstrap\cache\pacXXXX.tmp, ...bootstrap\cache/packages.php): 存取被拒 (code: 5)`。
   這是「清完快取後又被併發請求同時重建」造成的一次性問題，不是每次都會發生，但一發生就很難查。
 
@@ -131,6 +132,7 @@ php artisan package:discover
 | 頁面 500，log 顯示 `Class "App\Hq\SiteModule\Models\Module" not found` | 共用層依賴主站模塊表，但單站部署包不含 `app/Hq`（見 README 6.8 第 8 點、6.9 第 6 點） | 覆蓋共用目錄為最新版，並確認 `storage/app/site_modules.php` 存在 |
 | 頁面 500，log 顯示 `Access denied for user ''@'localhost'`（帳號與資料庫名都是空的） | 執行期 `env()` 在 `config:cache` 後回傳 null（見 README 6.4 第 4 點） | 覆蓋共用目錄為最新版，重新 `config:clear`／`config:cache` |
 | `/admin` 404 或空白頁 | 子站後台 SPA 未建置 | 執行 `npm ci && npm run admin:build` |
+| `/company` 404 或空白頁 | 公司端口 SPA 未建置 | 執行 `npm ci && npm run company:build` |
 | 首頁 302 轉到 `/admin` | 正常行為（裸網域導向後台入口，見 `SpaFallbackController`） | 無需處理 |
 
 ## 8. 登入帳號

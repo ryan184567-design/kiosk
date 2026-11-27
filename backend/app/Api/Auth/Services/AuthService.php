@@ -41,6 +41,16 @@ class AuthService
         $access = $this->resolvePortalAccess($user, $portal);
 
         if (! $access['ok']) {
+            // 密碼已確認正確、只是走錯登入入口（例如公司帳號在後台登入頁登入）：告訴前端這個帳號
+            // 可以登入哪些端口，由前端自動切換。只在密碼正確時才回這個資訊，不會洩漏帳號歸屬。
+            if ($access['error'] === 'portal_access_denied') {
+                $alternatives = $this->loginablePortalKeys($user, $portal->id);
+
+                if ($alternatives !== []) {
+                    return ['ok' => false, 'error' => 'portal_mismatch', 'portal_keys' => $alternatives];
+                }
+            }
+
             return $access;
         }
 
@@ -85,6 +95,21 @@ class AuthService
         }
 
         return ['ok' => true, 'roleId' => $access->role_id];
+    }
+
+    // 這個帳號實際能登入的其他端口代碼（已啟用、有存取權、符合 admin_only 限制），
+    // 判斷規則與 resolvePortalAccess 一致，排除目前要登入的端口。
+    private function loginablePortalKeys(User $user, int $excludePortalId): array
+    {
+        return Portal::query()
+            ->where('is_enabled', true)
+            ->where('id', '!=', $excludePortalId)
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Portal $portal) => $this->resolvePortalAccess($user, $portal)['ok'])
+            ->pluck('portal_key')
+            ->values()
+            ->all();
     }
 
     // 見 README 7 節：編輯自己的個人資料，不能改 username（登入帳號本身

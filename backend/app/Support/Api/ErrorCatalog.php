@@ -23,6 +23,7 @@ class ErrorCatalog
         ErrorCode::TOKEN_REPLACED_BY_NEW_LOGIN => 401,
         ErrorCode::MODULE_NOT_ENABLED => 403,
         ErrorCode::PORTAL_ADMIN_ONLY => 403,
+        ErrorCode::PORTAL_MISMATCH => 403,
         ErrorCode::RESOURCE_NOT_FOUND => 404,
         ErrorCode::SYSTEM_ERROR => 500,
     ];
@@ -36,6 +37,7 @@ class ErrorCatalog
         ErrorCode::TOKEN_REPLACED_BY_NEW_LOGIN => 'api.error_catalog.token_replaced_by_new_login',
         ErrorCode::MODULE_NOT_ENABLED => 'api.error_catalog.module_not_enabled',
         ErrorCode::PORTAL_ADMIN_ONLY => 'api.error_catalog.portal_admin_only',
+        ErrorCode::PORTAL_MISMATCH => 'api.error_catalog.portal_mismatch',
         ErrorCode::RESOURCE_NOT_FOUND => 'api.error_catalog.resource_not_found',
         ErrorCode::SYSTEM_ERROR => 'api.error_catalog.system_error',
     ];

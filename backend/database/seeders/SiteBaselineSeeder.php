@@ -10,7 +10,10 @@ Description: 子站 baseline seed（必要初始資料，見 README 13 節），
 namespace Database\Seeders;
 
 use App\Api\Dictionary\Models\SystemDictionary;
+use App\Api\Guest\Models\GuestCompanyMember;
+use App\Api\Guest\Services\GuestCompanyService;
 use App\Api\Menu\Models\Menu;
+use App\Api\Role\Models\Role;
 use App\Api\SystemConfig\Models\SystemConfig;
 use App\Api\User\Models\User;
 use App\Hq\Site\Models\Site;
@@ -86,6 +89,7 @@ class SiteBaselineSeeder extends Seeder
             ['is_portal_admin' => true]
         );
 
+        $this->seedGuestCompanyPortal();
         $this->seedConfigTypeDictionary();
         $this->seedSiteStatusDictionary();
         $this->seedGuestVisitReasonDictionary();
@@ -114,6 +118,37 @@ class SiteBaselineSeeder extends Seeder
     // 點擊，可見性由底下第二層決定；sort 從 1 開始（0 留給儀表板，sort
     // 是 unsignedSmallInteger，見 2024_01_02_000005_create_menus_table，
     // 不能用負數把儀表板排到最前面）。
+    // 訪客模組公司端口（company）：每家公司（門牌）的帳號登入這個端口，只看得到自己公司的資料
+    // （見 App\Api\Guest\Middleware\EnsureGuestCompanyScope）。三個角色對應公司內身分
+    // （GuestCompanyMember::ROLE_NAMES），帳號由系統依身分自動指派，名稱不可在後台改；
+    // 權限碼每次 seed 都覆寫成 GuestCompanyMember::rolePermissionCodes() 的版本（與建立端口的
+    // migration 共用同一份），要調整請改那裡再重跑 seed。
+    // 一般情況下 site:migrate 已經由 migration 建好端口與角色，這裡負責把權限碼同步成最新。
+    // 多站開發環境不論訪客模組是否開通都會建立（沒開通時 API 會被 module:guest 擋下、選單不顯示）；
+    // 單站部署包沒帶訪客模組原始碼時（未購買，見 SitePackageService::copyModules）直接略過，
+    // 否則這裡引用的類別不存在會讓整支 seeder 中斷。
+    private function seedGuestCompanyPortal(): void
+    {
+        if (! class_exists(GuestCompanyMember::class)) {
+            return;
+        }
+
+        $portal = Portal::query()->updateOrCreate(
+            ['portal_key' => GuestCompanyService::PORTAL_KEY],
+            ['name' => '公司端口', 'admin_only' => false, 'is_enabled' => true, 'requires_login' => true]
+        );
+
+        foreach (GuestCompanyMember::rolePermissionCodes() as $type => $codes) {
+            $role = Role::withTrashed()->firstOrNew([
+                'portal_id' => $portal->id,
+                'name' => GuestCompanyMember::ROLE_NAMES[$type],
+            ]);
+            $role->permission_codes = $codes;
+            $role->deleted_at = null;
+            $role->save();
+        }
+    }
+
     private function seedAdminMenu(): void
     {
         Menu::query()->updateOrCreate(

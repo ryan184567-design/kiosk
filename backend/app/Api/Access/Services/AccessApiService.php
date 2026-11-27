@@ -52,7 +52,7 @@ class AccessApiService
     /**
      * 刪除API
      */
-    public function dalete(int $id)
+    public function delete(int $id)
     {
         $api = AccessApi::query()->find($id);
         if (! $api) {

@@ -71,6 +71,72 @@
             "permission_code": "api.guest.dashboardSettingUpdate",
             "group": "group-guest",
             "sort": 5
+        },
+        {
+            "portal": "admin",
+            "key": "companies",
+            "title": "公司帳號管理",
+            "subtitle": "各公司帳號、員工與審核設定",
+            "icon": "Menu",
+            "path": "/guest/companies",
+            "permission_code": "api.guest.companyIndex",
+            "group": "group-guest",
+            "sort": 6
+        },
+        {
+            "portal": "company",
+            "key": "company-applies",
+            "title": "預約管理",
+            "subtitle": "登記與管理本公司訪客預約",
+            "icon": "fa-solid fa-calendar-check",
+            "path": "/guest/applies",
+            "permission_code": "api.guest.index",
+            "group": null,
+            "sort": 1
+        },
+        {
+            "portal": "company",
+            "key": "company-approvals",
+            "title": "訪客審核",
+            "subtitle": "審核本公司的訪客預約",
+            "icon": "fa-solid fa-clipboard-check",
+            "path": "/guest/approvals",
+            "permission_code": "api.guest.approval",
+            "group": null,
+            "sort": 2
+        },
+        {
+            "portal": "company",
+            "key": "company-records",
+            "title": "訪客紀錄",
+            "subtitle": "本公司的歷史訪客紀錄",
+            "icon": "fa-solid fa-clock-rotate-left",
+            "path": "/guest/records",
+            "permission_code": "api.guest.records",
+            "group": null,
+            "sort": 3
+        },
+        {
+            "portal": "company",
+            "key": "company-employees",
+            "title": "員工管理",
+            "subtitle": "本公司員工帳號與審核者",
+            "icon": "fa-solid fa-users",
+            "path": "/company/employees",
+            "permission_code": "api.guest.employeeIndex",
+            "group": null,
+            "sort": 4
+        },
+        {
+            "portal": "company",
+            "key": "company-setting",
+            "title": "審核設定",
+            "subtitle": "員工新增預約是否需要審核",
+            "icon": "fa-solid fa-sliders",
+            "path": "/company/setting",
+            "permission_code": "api.guest.companySettingUpdate",
+            "group": null,
+            "sort": 5
         }
     ]
 }

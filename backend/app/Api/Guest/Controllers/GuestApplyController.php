@@ -3,17 +3,22 @@
 namespace App\Api\Guest\Controllers;
 
 use App\Support\Http\Controllers\BaseApiController;
+use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Api\Concerns\PaginationHelper;
 use App\Api\Guest\Services\GuestApplyService;
 use App\Api\Guest\Services\GuestReasonDictionary;
+use App\Api\Guest\Support\GuestCompanyContext;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 
 class GuestApplyController extends BaseApiController
 {
-    use PaginationHelper;
+    // MapsServiceExceptions：Service 的業務例外（找不到、狀態不可修改…）轉成 404／422 並帶中文訊息，
+    // 不再變成沒有訊息的 500（公司端口查別家公司的單也是走「找不到」）。
+    use MapsServiceExceptions, PaginationHelper;
 
     /**
      * @api-method GET
@@ -22,11 +27,12 @@ class GuestApplyController extends BaseApiController
      * @api-summary 訪客預約列表
      * @api-description
      * 依日期、狀態與關鍵字查詢預約單，依預約日期與起始時間由新到舊排序。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * - `keyword` 會比對預約單號、受訪人、來訪者姓名（模糊查詢）
      * - `date_from`／`date_to` 為預約日期區間（含頭尾），兩者皆可單獨使用
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
      * - 已取消（reservation_status=60）的預約單也會出現在列表，可用 `reservation_status` 篩選
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
      * @api-dict guest_apply_reservation_type 0=事前預約,1=現場預約
      * @api-query-field keyword string optional 搜尋關鍵字
@@ -104,17 +110,20 @@ class GuestApplyController extends BaseApiController
      * @api-path /api/guest/applies
      * @api-tag GuestApply
      * @api-summary 新增訪客預約
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-description
-     * 建立一筆事前預約。單號、QR code、速通碼由系統產生，不接受外部傳入；
-     * 新增後審核狀態固定為 0（待審核），預約類型固定為 0（事前預約）。
+     * 建立一筆事前預約。單號、QR code、速通碼由系統產生，不接受外部傳入；預約類型固定為 0（事前預約）。
+     * 新增後的審核狀態：公司員工從公司端口建立時，依所屬公司的審核開關（需要審核 → 0 待審核；免審核 → 10 已核准）；
+     * 其他來源（後台建立、訪客申請）一律 0（待審核），不受公司開關影響，由受訪公司的公司管理員/審核者或後台審核。
+     * 建立者（登入的使用者）會記錄在預約單上。
+     * **公司端口（company）**：`doorplate_id` 不用傳，一律為登入者所屬公司。
      * - `date` 不可早於今天
      * - `visitor` 至少一位；名單人數不可超過 `guest_count`（`guest_count` 可大於名單，代表其餘同行者不另外登記）
      * - 通知設定目前只儲存開關，尚不會實際發送 Email／簡訊或排程提醒
      * - `is_auto_remind` 為 true 時 `remind_time` 必填；為 false 時 `remind_time` 會被忽略並存為 null
      * @api-dict guest_apply_reservation_status 0:待審核、1:修改待審核、10:已核准、11:修改已核准、20:已通知、30:未到、40:已到、50:已離場、60:已取消
      * @api-dict guest_apply_reservation_type 0:事前預約,1:現場預約
-     * @api-request-field doorplate_id int 受訪公司（門牌）ID，必填，需為已存在的門牌
+     * @api-request-field doorplate_id int 受訪公司（門牌）ID，admin 端口必填、需為已存在的門牌；公司端口免填（傳了也會被忽略）
      * @api-request-field visit_date string 預約日期 YYYY-MM-DD，必填，不可早於今天
      * @api-request-field visit_start_time string 預約時段(起始) HH:mm，必填，例如 10:00
      * @api-request-field visit_end_time string 預約時段(結束) HH:mm，必填，例如 11:00
@@ -140,27 +149,33 @@ class GuestApplyController extends BaseApiController
     public function store(Request $request, GuestApplyService $service)
     {
         $data = $this->validateInput($request, $this->rules());
+        $data['doorplate_id'] = $this->scopedDoorplateId($data);
 
         $data['reservation_type'] = GuestApply::TYPE_ADVANCE;
-        $data['reservation_status'] = GuestApply::STATUS_PENDING;
+        $data['reservation_status'] = $service->initialStatus($data['doorplate_id'], GuestCompanyContext::member() !== null);
 
-        $guestApply = $service->create(
-            $data['doorplate_id'],
-            $data['visit_date'],
-            $data['visit_start_time'],
-            $data['visit_end_time'],
-            $data['guest_count'],
-            $data['host_name'],
-            $data['visit_reason'],
-            $data['remark'] ?? '',
-            $data['is_email_notify'] ?? 1,
-            $data['is_sms_notify'] ?? 1,
-            $data['is_auto_remind'] ?? 1,
-            $data['remind_time'] ?? 30,
-            $data['visitor'],
-            $data['reservation_type'],
-            $data['reservation_status'],
-        );
+        try {
+            $guestApply = $service->create(
+                $data['doorplate_id'],
+                $data['visit_date'],
+                $data['visit_start_time'],
+                $data['visit_end_time'],
+                $data['guest_count'],
+                $data['host_name'],
+                $data['visit_reason'],
+                $data['remark'] ?? '',
+                $data['is_email_notify'] ?? 1,
+                $data['is_sms_notify'] ?? 1,
+                $data['is_auto_remind'] ?? 1,
+                $data['remind_time'] ?? 30,
+                $data['visitor'],
+                $data['reservation_type'],
+                $data['reservation_status'],
+                $this->currentUser($request)?->id,
+            );
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
 
         return $this->success($this->presentGuestApply($guestApply), 201);
     }
@@ -172,8 +187,9 @@ class GuestApplyController extends BaseApiController
      * @api-summary 訪客預約詳情
      * @api-description
      * 取得單筆預約單，含完整來訪者明細、通知設定、QR code、速通碼與門禁卡號。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * 已取消的預約單 `qr_code`、`fast_pass_code` 為 null（取消時已清除）。
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-dict guest_apply_reservation_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消
      * @api-dict guest_apply_reservation_type 0=事前預約,1=現場預約
      * @api-no-request-body
@@ -213,7 +229,11 @@ class GuestApplyController extends BaseApiController
      */
     public function show(int $id, GuestApplyService $service)
     {
-        $apply = $service->show($id);
+        try {
+            $apply = $service->show($id);
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
 
         return $this->success($this->presentApplyId($apply));
     }
@@ -231,14 +251,16 @@ class GuestApplyController extends BaseApiController
      * @api-path /api/guest/applies/{id}
      * @api-tag GuestApply
      * @api-summary 修改訪客預約
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-description
      * 修改預約單內容，欄位規則與新增相同；`visitor` 為整批重寫（原名單會被刪除），所以要保留的來訪者也必須一併送出。
-     * 單號、QR code、速通碼、審核狀態都不會因修改而改變。
-     * 只有尚未報到的預約單可以修改
+     * 單號、QR code、速通碼不會因修改而改變。
+     * 修改後的審核狀態：公司員工從公司端口修改、且公司設定免審核 → 11（修改已核准）；其餘一律 1（修改待審核）。
+     * 只有尚未報到的預約單可以修改。
+     * **公司端口（company）**：只能修改自己公司的預約單，`doorplate_id` 不用傳，一律為登入者所屬公司。
      * @api-dict guest_apply_reservation_status 0:待審核、1:修改待審核、10:已核准、11:修改已核准、20:已通知、30:未到、40:已到、50:已離場、60:已取消
      * @api-dict guest_apply_reservation_type 0:事前預約,1:現場預約
-     * @api-request-field doorplate_id int 受訪公司（門牌）ID，必填，需為已存在的門牌
+     * @api-request-field doorplate_id int 受訪公司（門牌）ID，admin 端口必填、需為已存在的門牌；公司端口免填（傳了也會被忽略）
      * @api-request-field visit_date string 預約日期 YYYY-MM-DD，必填，不可早於今天
      * @api-request-field visit_start_time string 預約時段(起始) HH:mm，必填，例如 10:00
      * @api-request-field visit_end_time string 預約時段(結束) HH:mm，必填，例如 11:00
@@ -264,23 +286,29 @@ class GuestApplyController extends BaseApiController
     public function update(Request $request, int $id, GuestApplyService $service)
     {
         $data = $this->validateInput($request, $this->rules());
+        $data['doorplate_id'] = $this->scopedDoorplateId($data);
 
-        $guestApply = $service->update(
-            $id,
-            $data['doorplate_id'],
-            $data['visit_date'],
-            $data['visit_start_time'],
-            $data['visit_end_time'],
-            $data['guest_count'],
-            $data['host_name'],
-            $data['visit_reason'],
-            $data['remark'] ?? '',
-            $data['is_email_notify'] ?? 1,
-            $data['is_sms_notify'] ?? 1,
-            $data['is_auto_remind'] ?? 1,
-            $data['remind_time'] ?? 30,
-            $data['visitor'],
-        );
+        try {
+            $guestApply = $service->update(
+                $id,
+                $data['doorplate_id'],
+                $data['visit_date'],
+                $data['visit_start_time'],
+                $data['visit_end_time'],
+                $data['guest_count'],
+                $data['host_name'],
+                $data['visit_reason'],
+                $data['remark'] ?? '',
+                $data['is_email_notify'] ?? 1,
+                $data['is_sms_notify'] ?? 1,
+                $data['is_auto_remind'] ?? 1,
+                $data['remind_time'] ?? 30,
+                $data['visitor'],
+                GuestCompanyContext::member() !== null,
+            );
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
 
         return $this->success($this->presentGuestApply($guestApply), 201);
     }
@@ -290,9 +318,10 @@ class GuestApplyController extends BaseApiController
      * @api-path /api/guest/applies/{id}/cancel
      * @api-tag GuestApply
      * @api-summary 取消訪客預約
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-description
      * 取消預約單：審核狀態改為 60（已取消），並清除 QR code 與速通碼、門禁卡號使其立即失效。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * 這是狀態變更而非刪除，預約單與來訪者資料都會保留，已取消的預約單不可再修改或再次取消。
      * @api-dict guest_apply_reservation_status 0:待審核、1:修改待審核、10:已核准、11:修改已核准、20:已通知、30:未到、40:已到、50:已離場、60:已取消
      * @api-no-request-body
@@ -300,7 +329,11 @@ class GuestApplyController extends BaseApiController
      */
     public function cancel(int $id, Request $request, GuestApplyService $service)
     {
-        $service->cancel($id);
+        try {
+            $service->cancel($id);
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
 
         return $this->success();
     }
@@ -310,20 +343,32 @@ class GuestApplyController extends BaseApiController
      * @api-path /api/guest/applies/{id}/status
      * @api-tag GuestApply
      * @api-summary 審核訪客狀態
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-description
      * 傳入參數為1、20、30、40、50、60、70，審核過為1，再依據實際狀態為改為10或11，如果傳入值為60、70，清除 QR code 與速通碼、門禁卡號使其立即失效。
-     * @api-request-field reservation_status int 預約單狀態
+     * **公司端口（company）**：只能審核自己公司的預約單，且只接受 1（核准）與 70（拒絕），
+     * 預約單必須是待審核（0）或修改待審核（1）；其他狀態（已通知、已到、已離場等）由後台與訪客機處理。
+     * @api-request-field reservation_status int 預約單狀態；公司端口只接受 1、70
      * @api-request-example {"reservation_status": 1}
      * @api-response-empty
      */
     public function statusChange(int $id, Request $request, GuestApplyService $service)
     {
+        $isCompany = GuestCompanyContext::member() !== null;
+
         $data = $this->validateInput($request, [
-            'reservation_status' => 'int|in:1,20,30,40,50,60,70',
+            'reservation_status' => $isCompany ? 'required|int|in:1,70' : 'int|in:1,20,30,40,50,60,70',
         ]);
 
-        $service->status($id, $data['reservation_status']);
+        try {
+            if ($isCompany) {
+                $service->assertPendingApproval($id);
+            }
+
+            $service->status($id, $data['reservation_status']);
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
 
         return $this->success();
     }
@@ -346,10 +391,17 @@ class GuestApplyController extends BaseApiController
         return $this->success();
     }
 
+    // 公司端口一律用登入者所屬公司（門牌），忽略前端傳的 doorplate_id，避免替別家公司建單或把單改到別家。
+    private function scopedDoorplateId(array $data): int
+    {
+        return GuestCompanyContext::doorplateId() ?? (int) $data['doorplate_id'];
+    }
+
     private function rules(): array
     {
         return [
-            'doorplate_id' => ['required', 'int', 'exists:site_current.doorplates,id'],
+            // 公司端口不需要傳（見 scopedDoorplateId）
+            'doorplate_id' => [GuestCompanyContext::doorplateId() === null ? 'required' : 'nullable', 'int', 'exists:site_current.doorplates,id'],
             'visit_date' => ['required', 'date_format:Y-m-d', 'after_or_equal:today'],
             'visit_start_time' => ['required', 'date_format:H:i'],
             'visit_end_time' => ['required', 'date_format:H:i', 'after:visit_start_time'],

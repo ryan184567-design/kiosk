@@ -28,13 +28,14 @@ class GuestApprovalController extends BaseApiController
      * @api-summary 訪客審核列表
      * @api-description
      * 查詢待審核、已核准、已拒絕的訪客(預約單)列表，依預約單建立日期由新到舊排序。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * - `export` 決定輸出類型：0（預設）回傳 JSON 列表；1 下載 Excel（.xlsx）；2 下載 PDF
      * - `export` 為 1 或 2 時直接回傳檔案（不是 JSON），忽略 `page`、`per_page`，匯出符合篩選條件的全部資料，最多 5000 筆
      * - `date_from`／`date_to` 為預約日期區間（含頭尾），兩者皆可單獨使用
      * - `keyword` 同時比對單號、來訪者姓名、公司（皆為模糊查詢）
      * - `reservation_status` 審核狀態，今日訪客、本週訪客列表不回傳審核狀態
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-dict guest_record_status 0=待審核,1=修改待審核,10=已核准,11=修改已核准,20=已通知,30=未到,40=已到,50=已離場,60=已取消,70=已拒絕
      * @api-dict guest_record_export 0=JSON列表,1=Excel,2=PDF
      * @api-query-field export int 輸出類型，選填，預設 0；0=JSON列表、1=Excel、2=PDF
@@ -119,8 +120,9 @@ class GuestApprovalController extends BaseApiController
      * @api-summary 訪客審核人數
      * @api-description
      * 待審核包含待審核(0)與修改待審核(1)，已核准包含已核准(10)與修改已核准(11)
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * 訪客人數以`guest_count`人次加總，訪客人數不包含狀態`reservation_status`為未到(30)、已取消(60)、已拒絕(70)
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-no-request-body
      * @api-response-field data.status[].0 int 待審核
      * @api-response-field data.status[].1 int 已核准

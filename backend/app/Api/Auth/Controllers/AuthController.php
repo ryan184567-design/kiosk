@@ -42,11 +42,17 @@ class AuthController extends BaseApiController
      * 目前系統預設只有一個端口：`admin`（管理後台），登入後台就填 `admin`。
      * 之後若在「端口管理」新增其他端口（如 vendor），才會多出可填的值；
      * 填了不存在、已停用或該帳號沒被開通的端口，一律登入失敗，不會自動改用其他端口。
+     *
+     * **走錯登入入口**：帳號密碼正確、但沒有開通 `portal_key` 這個端口，而它有開通其他端口時，
+     * 回傳錯誤碼 `20018`（PORTAL_MISMATCH，HTTP 403），並在 `data.portal_keys` 列出這個帳號可以登入的端口代碼
+     * （例如公司帳號在後台登入 → `["company"]`），前端可據此改用正確端口登入並跳轉。這個錯誤只在密碼正確時才會出現；
+     * 帳號或密碼錯誤一律回「帳號、密碼或端口錯誤」，不透露帳號屬於哪個端口。
+     * 目前有前端的端口：`admin`（/admin 管理後台）、`company`（/company 公司端口，訪客模組各公司帳號）。
      * @api-portal *
-     * @api-dict portal_key admin=管理後台（預設唯一端口，登入後台請填此值）
+     * @api-dict portal_key admin=管理後台,company=公司端口（訪客模組各公司帳號）
      * @api-request-field username string 登入帳號，必填。預設帳號見 README 第 7 節（子站超級管理員 admin、系統管理員為站代碼）
      * @api-request-field password string 密碼，必填
-     * @api-request-field portal_key dict:portal_key 要進入的端口代碼，必填，目前可選值只有 admin
+     * @api-request-field portal_key dict:portal_key 要進入的端口代碼，必填
      * @api-request-example
      * {"username": "admin", "password": "!@#123456", "portal_key": "admin"}
      * @api-response-field data.access_token string JWT
@@ -65,6 +71,7 @@ class AuthController extends BaseApiController
         if (! $result['ok']) {
             return match ($result['error']) {
                 'portal_admin_only' => $this->fail(ErrorCode::PORTAL_ADMIN_ONLY),
+                'portal_mismatch' => $this->fail(ErrorCode::PORTAL_MISMATCH, null, null, ['portal_keys' => $result['portal_keys']]),
                 default => $this->fail(ErrorCode::CREDENTIALS_MISSING, __('api.auth.invalid_credentials')),
             };
         }

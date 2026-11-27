@@ -52,6 +52,8 @@ class SitePackageService
         // 子站後台原始碼：admin:build 需要。主站後台 vue_src_hq 與
         // vite.hq.config.js 刻意不帶（單站部署包不含站點管理）。
         'resources/vue_src_admin',
+        // 公司端口原始碼（訪客模組各公司帳號登入 /company）：company:build 需要。
+        'resources/vue_src_company',
         'resources/css',
         'resources/js',
         'artisan',
@@ -64,6 +66,7 @@ class SitePackageService
         'vite.config.js',
         'vite.vue.config.js',
         'vite.admin.config.js',
+        'vite.company.config.js',
         // 附上完整的環境變數範本：匯出時產生的 .env 就是從它改寫而來，
         // 現場工程師也能從它看出有哪些可調整的設定（原本只給五行 .env.package
         // 提示，結果是現場得自己拼一份殘缺的 .env，缺 APP_KEY 直接起不來）。

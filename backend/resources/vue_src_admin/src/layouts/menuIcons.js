@@ -28,6 +28,7 @@ const ICON_BY_KEY = {
   records: 'fa-solid fa-clock-rotate-left',
   applies: 'fa-solid fa-calendar-check',
   reports: 'fa-solid fa-chart-column',
+  companies: 'fa-solid fa-building-user',
   // 系統設定
   menus: 'fa-solid fa-bars',
   dictionaries: 'fa-solid fa-book',
