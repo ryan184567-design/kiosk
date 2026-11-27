@@ -196,12 +196,13 @@ SPA dev server 已用 proxy 轉發 `/api`（可用 `VUE_DEV_API_PROXY` 覆寫）
 | 用途 | 指令 |
 | --- | --- |
 | 模塊骨架（公版會互動產生 module.json） | `php artisan module:make order` |
-| 掃描 module.json 寫入 modules 表 | `php artisan module:sync` |
+| 掃描 module.json，同步 modules 表與各子站的模組選單 | `php artisan module:sync` |
 | 子站客製化 Vue 頁骨架 | `php artisan vue:page:make vendor_a order-dashboard` |
 | 插件骨架（要手動登記 `config/plugins.php`） | `php artisan plugin:make ad microsoft v2019` |
 | 依現有資料表產生 migration／seed | `php artisan db:table:scaffold users` |
 
 - `module:make` 可加 `--portal=vendor`（指定端口）、`--site=vendor_a`（做成子站客製模塊）。
+- `module:sync` 會把 `module.json` 的選單補進每個子站（只補該站已開通模組的選單），並以 `module.json` 為準覆寫模組選單的標題、圖示、排序；後台手動新增的選單不受影響。只想同步主站 modules 表時加 `--no-menus`。
 - `db:table:scaffold` 可加 `--only=migration` 或 `--only=seed`。
 
 ### 4.4 權限與 API 文件
@@ -235,7 +236,7 @@ php artisan migrate
 php artisan site:migrate --all
 ```
 
-**步驟 3：同步模塊與權限**（一定要在步驟 2 之後，否則可能遇到「不存在的端口」錯誤）
+**步驟 3：同步模塊、選單與權限**（一定要在步驟 2 之後，否則可能遇到「不存在的端口」錯誤；漏了 `module:sync`，新選單不會出現）
 
 ```powershell
 php artisan module:sync
@@ -295,7 +296,7 @@ php artisan optimize:clear
 
 | 你改了… | 要跑 |
 | --- | --- |
-| 新增模塊／改 `module.json` | `php artisan module:sync` |
+| 新增模塊／改 `module.json`（含新增選單） | `php artisan module:sync` |
 | 新增或改名 API、改 `@api-*` 註解 | ① `permission:sync-api --site=1 --assign-admin=admin`<br>② `swagger:generate --pretty` |
 | 新增或改名機器接口（`factory.scope`，見 5.8） | ① `factory:sync-scopes --site=1`<br>② 到後台授權<br>③ `swagger:generate --pretty` |
 | 新增 Web 頁路由（`permission.web`） | `permission:sync-web --site=1 --assign-admin=admin` |
@@ -359,11 +360,10 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 { path: 'orders', name: 'orders', meta: { title: '訂單管理' }, component: () => import('../pages/order/OrderList.vue') },
 ```
 
-**③ 套用**
+**③ 套用**：跑 `php artisan module:sync`，選單會補進所有子站（只補該站已開通的模組）。
 
-- 新站：自動帶入。
-- 既有站的非核心模塊：「開通」時自動補註冊。
-- 核心模塊，或事後改了 `module.json`：要重跑 baseline seed。
+- 新站：建站時自動帶入。
+- 既有站的非核心模塊：主站「開通」時也會自動補上。
 
 **選單沒出現時，依序檢查：**
 
@@ -689,7 +689,7 @@ Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/user/profile" -Headers @{ Auth
 | 畫面空白、主控台有 CSP violation | 嚴格 CSP 的預期行為；常見原因是 `:style` 動態綁定（DEVELOP.MD 4.2.1） |
 | 改設定沒生效 | `php artisan optimize:clear` |
 | API 一律 403 | 權限碼與方法名不一致、沒跑 `permission:sync-api`、角色沒勾選，或模塊未開通（見 5.5） |
-| 選單沒出現 | 見 5.3「選單沒出現時，依序檢查」 |
+| 選單沒出現 | 先跑 `php artisan module:sync`（同步選單到子站），再見 5.3「選單沒出現時，依序檢查」 |
 | `permission:sync-api` 報「@api-portal 標註了不存在的端口」 | 資料庫還沒有該端口：先跑 `site:migrate --all`，再重跑同步（見 4.5） |
 | 一直被登出、提示「登入已失效」 | 同一個帳號在別處登入了同一個端口（見第 7 節），換個帳號測試 |
 | 機器接口換 token 一直 401／500 | 到後台「廠商 App 記錄」看失敗原因；500 多半是 `.env` 沒設 `FACTORY_JWT_SECRET`（至少 32 字元），見 `docs/APP_DEVELOP.MD` 7.4 |
