@@ -156,6 +156,21 @@ async function switchToPortal(portalKey, username, password) {
   return { redirected: true, portalLabel: target.label };
 }
 
+// 帳號能登入公司端口、卻不是任何公司的成員（例如後台的超級管理員：系統身分可以登入任何端口）：
+// 依序嘗試改登入其他端口（目前是管理後台），成功就整頁跳轉並回傳 { redirected: true }；
+// 都登入不了回傳 null，由呼叫端顯示原本的錯誤訊息。
+export async function switchToOtherPortal(username, password) {
+  for (const portalKey of Object.keys(SWITCHABLE_PORTALS)) {
+    try {
+      return await switchToPortal(portalKey, username, password);
+    } catch (e) {
+      // 這個端口也登入不了，換下一個。
+    }
+  }
+
+  return null;
+}
+
 // 登入成功回傳後端 data；若帳號屬於其他端口（例如後台管理員），會自動改登入該端口並整頁跳轉，
 // 此時回傳 { redirected: true }，呼叫端不要再做後續動作。
 export async function login(username, password) {

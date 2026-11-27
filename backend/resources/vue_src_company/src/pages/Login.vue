@@ -27,7 +27,7 @@ Description: 公司端口登入頁，固定登入 company 端口；登入後確�
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { clearSession, login, loadProfile } from '../stores/auth';
+import { login, loadProfile, logout, switchToOtherPortal } from '../stores/auth';
 import { loadCompany } from '../stores/company';
 
 const router = useRouter();
@@ -51,7 +51,13 @@ async function handleSubmit() {
     // 重新讀本公司資訊（換帳號登入時不能沿用上一個帳號的公司）；沒有隸屬公司的帳號後端會拒絕。
     const result = await loadCompany(true);
     if (!result.ok) {
-      clearSession();
+      // 不是公司成員（例如後台管理員）：先登出剛建立的公司端口登入，再試著改登入後台並跳轉。
+      await logout();
+      const switched = await switchToOtherPortal(username.value, password.value);
+      if (switched?.redirected) {
+        ElMessage.info(`此帳號屬於${switched.portalLabel}，正在為您切換…`);
+        return;
+      }
       throw new Error(result.message);
     }
     router.push({ name: 'home' });
