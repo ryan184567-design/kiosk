@@ -13,14 +13,16 @@ use App\Api\Guest\Models\Guest;
 use App\Api\Guest\Models\GuestApply;
 use App\Api\Guest\Services\GuestReasonDictionary;
 use App\Api\Guest\Services\GuestRecordService;
+use App\Support\Api\Concerns\MapsServiceExceptions;
 use App\Support\Api\Concerns\PaginationHelper;
 use App\Support\Export\TableExporter;
 use App\Support\Http\Controllers\BaseApiController;
 use Illuminate\Http\Request;
+use RuntimeException;
 
 class GuestRecordController extends BaseApiController
 {
-    use PaginationHelper;
+    use MapsServiceExceptions, PaginationHelper;
 
     /** 列表輸出類型 */
     private const EXPORT_JSON = 0;
@@ -34,10 +36,11 @@ class GuestRecordController extends BaseApiController
      * @api-summary 訪客記錄儀表板
      * @api-description
      * 訪客記錄頁最上方四張統計卡片。只統計已報到（已到、已離場）的預約單，人數以預約單的 `guest_count` 加總，日期以預約日期為準。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * - 今日：與昨日比較；本週：週一至週日，與上週比較；本月：與上個月比較
      * - `growth_rate` 為成長百分比（例如 20 代表 +20%，負數代表下降），上一期為 0 時為 null
      * - 完成訪客為累計已離場（reservation_status=50）的人數，沒有成長率
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-no-request-body
      * @api-response-field data.today.count int 今日訪客人數
      * @api-response-field data.today.previous_count int 昨日訪客人數
@@ -62,12 +65,13 @@ class GuestRecordController extends BaseApiController
      * @api-summary 訪客記錄列表
      * @api-description
      * 查詢已報到（已到、已離場）的訪客記錄，依預約日期與起始時間由新到舊排序。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * - `export` 決定輸出類型：0（預設）回傳 JSON 列表；1 下載 Excel（.xlsx）；2 下載 PDF
      * - `export` 為 1 或 2 時直接回傳檔案（不是 JSON），忽略 `page`、`per_page`，匯出符合篩選條件的全部資料，最多 5000 筆
      * - `date_from`／`date_to` 為預約日期區間（含頭尾），兩者皆可單獨使用
      * - `guest_name`、`company_name` 比對來訪者姓名、公司名稱；`visit_reason` 為來訪事由（字典 guest_visit_reason 的值，精確比對）；`keyword` 同時比對單號、受訪人、來訪者姓名、公司、手機、車牌（皆為模糊查詢）
      * - `per_page` 傳 -1 代表不分頁，一次回傳全部符合條件的資料；省略時預設 10
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-dict guest_record_status 40=在場中,50=已離場
      * @api-dict guest_visit_reason 1=業務洽談,2=工程維護,3=會議,4=送貨/收發,5=面試,6=參觀訪問,7=設備檢測,99=其他
      * @api-dict guest_record_export 0=JSON列表,1=Excel,2=PDF
@@ -155,8 +159,9 @@ class GuestRecordController extends BaseApiController
      * @api-summary 訪客記錄詳情
      * @api-description
      * 取得單筆訪客記錄（右側「訪客詳細資料」面板）。只有已報到（已到、已離場）的預約單查得到，其餘回 404。
+     * **公司端口（company）**：只會查到登入者所屬公司（門牌）的資料，admin 端口不受限。
      * `health_declaration` 為 true 代表訪客在報到時已同意健康聲明（同意書）。
-     * @api-portal admin
+     * @api-portal admin,company
      * @api-dict guest_record_status 40=在場中,50=已離場
      * @api-dict guest_visit_reason 1=業務洽談,2=工程維護,3=會議,4=送貨/收發,5=面試,6=參觀訪問,7=設備檢測,99=其他
      * @api-no-request-body
@@ -186,7 +191,11 @@ class GuestRecordController extends BaseApiController
      */
     public function recordShow(int $id, GuestRecordService $service)
     {
-        return $this->success($this->presentDetail($service->show($id)));
+        try {
+            return $this->success($this->presentDetail($service->show($id)));
+        } catch (RuntimeException $e) {
+            return $this->failFromService($e);
+        }
     }
 
     /** 列表匯出：1 Excel、2 PDF，欄位與畫面上的清單一致 */

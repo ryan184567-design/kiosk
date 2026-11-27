@@ -37,6 +37,7 @@ const routes = [
       { path: 'guest/applies', name: 'guest-applies', meta: { title: '預約管理' }, component: () => import('../pages/guest/ReservationList.vue') },
       { path: 'guest/slots', name: 'guest-slots', meta: { title: '證件櫃' }, component: () => import('../pages/guest/SlotList.vue') },
       { path: 'guest/upload', name: 'guest-upload', meta: { title: '上傳設定' }, component: () => import('../pages/guest/UploadSettings.vue') },
+      { path: 'guest/companies', name: 'guest-companies', meta: { title: '公司帳號管理' }, component: () => import('../pages/guest/CompanyList.vue') },
       // 基本資料設定模塊：路徑對應後端 app/Api/DataSetting/module.json 的選單 path。
       { path: 'data-setting/building', name: 'data-setting-building', meta: { title: '棟別設定' }, component: () => import('../pages/data-setting/BuildingList.vue') },
       { path: 'data-setting/floor', name: 'data-setting-floor', meta: { title: '樓別設定' }, component: () => import('../pages/data-setting/FloorList.vue') },

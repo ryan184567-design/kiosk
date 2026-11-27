@@ -8,6 +8,7 @@ Description: 見 README 9 節：app/Web/{portal}/{module}/routes/web.php 各模�
 ***************************************** */
 
 use App\Support\Http\Controllers\AdminSpaController;
+use App\Support\Http\Controllers\CompanySpaController;
 use App\Support\Http\Controllers\ApiDocsController;
 use App\Support\Http\Controllers\HqSpaController;
 use App\Support\Http\Controllers\SpaFallbackController;
@@ -54,6 +55,12 @@ Route::middleware('site.context')->group(function () {
     Route::get('/admin/{any}', AdminSpaController::class)->where('any', '.*');
     Route::get('/{sitePrefix}/admin', AdminSpaController::class)->where('sitePrefix', '[a-z0-9_]+');
     Route::get('/{sitePrefix}/admin/{any}', AdminSpaController::class)->where(['sitePrefix' => '[a-z0-9_]+', 'any' => '.*']);
+
+    // 公司端口（訪客模組各公司帳號登入，見 README 5.4 新增端口）：網址結構同管理後台。
+    Route::get('/company', CompanySpaController::class);
+    Route::get('/company/{any}', CompanySpaController::class)->where('any', '.*');
+    Route::get('/{sitePrefix}/company', CompanySpaController::class)->where('sitePrefix', '[a-z0-9_]+');
+    Route::get('/{sitePrefix}/company/{any}', CompanySpaController::class)->where(['sitePrefix' => '[a-z0-9_]+', 'any' => '.*']);
 });
 
 // 見 README 3.2 第 3 點：其餘前台 GET 路徑都回傳 Vue 入口頁，掛 site.context

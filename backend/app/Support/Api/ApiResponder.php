@@ -24,13 +24,21 @@ class ApiResponder
         ], $status);
     }
 
-    public static function fail(int $errorCode, ?string $message = null, ?int $status = null): JsonResponse
+    // $data：少數錯誤需要附帶讓前端處理的資訊（例如 PORTAL_MISMATCH 附上可登入的端口），
+    // 有值才輸出 data 欄位，其餘錯誤回應格式維持不變。
+    public static function fail(int $errorCode, ?string $message = null, ?int $status = null, array $data = []): JsonResponse
     {
-        return response()->json([
+        $body = [
             'status' => false,
             'error_code' => $errorCode,
             'error_message' => $message ?? ErrorCatalog::message($errorCode),
             'trace_id' => (string) Str::uuid(),
-        ], $status ?? ErrorCatalog::status($errorCode));
+        ];
+
+        if ($data !== []) {
+            $body['data'] = $data;
+        }
+
+        return response()->json($body, $status ?? ErrorCatalog::status($errorCode));
     }
 }

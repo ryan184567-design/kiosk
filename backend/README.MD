@@ -304,6 +304,22 @@ Route::middleware(['module:order', 'jwt.auth'])->prefix('orders')->group(functio
 
 範例：`app/Api/Guest/Controllers/FactoryGuestApplyController.php` 與 `app/Api/Guest/routes/api.php` 最下方的 `factory/guest` 群組。
 
+### 5.9 訪客模組公司端口（company）
+
+一個門牌＝一家公司。後台「訪客管理 › 公司帳號管理」替公司建立**公司管理員**帳號，對方登入 `/company`（前端 `resources/vue_src_company`）自行管理員工、指定審核者、設定審核開關。
+
+| 身分（`guest_company_members.member_type`） | company 端口角色 | 可做的事 |
+| --- | --- | --- |
+| 1 公司管理員 | 公司管理員 | 員工管理、審核設定、審核、預約 |
+| 2 審核者 | 審核者 | 審核、預約 |
+| 3 一般員工 | 一般員工 | 登記與管理預約、訪客紀錄 |
+
+- **資料隔離**：同一組 `/api/guest/applies|approvals|records` API 兩個端口共用。登入 company 端口時，`EnsureGuestCompanyScope` 依成員紀錄套上公司範圍，`GuestApply` 的全域範圍自動加 `doorplate_id` 條件；admin 端口看全部。**新增訪客 API 時不用自己加公司條件，但不能用 `DB::table('guest_applies')` 或 `withoutGlobalScope` 繞過 Model**。
+- **審核規則**：公司的審核開關（`doorplates.approval_required`）**只影響員工從 company 端口新增／修改的預約**（免審核→10／11）。其他來源的訪客申請（後台建立等）一律待審核，由受訪公司的公司管理員／審核者（或後台）審核。company 端口只能核准（1）或拒絕（70）待審核的單。
+- **角色**：三個角色由 `SiteBaselineSeeder::seedGuestCompanyPortal()` 建立並覆寫權限碼，**不要在後台改名或改權限**（帳號依名稱指派角色）；要調整就改 seeder 後重跑 baseline seed。
+- 前端：`npm run company:build`（開發 `company:dev`，埠號 5177），輸出 `public/company-assets`。
+- **登入入口相容**：帳號密碼正確但走錯入口時，`/api/auth/login` 回 `20018`（PORTAL_MISMATCH）並附 `data.portal_keys`；後台登入頁遇到公司帳號會自動改登入 company 端口並跳到 `/company`，反之亦然。新增有前端的端口時，記得在各 SPA `stores/auth.js` 的 `SWITCHABLE_PORTALS` 補上。
+
 ## 6. 前端（Vue3）：共用、客製化與部署
 
 ### 6.1 四套前端，各自獨立建置
