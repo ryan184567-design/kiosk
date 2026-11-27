@@ -31,6 +31,32 @@ class GuestCompanyMember extends Model
         self::TYPE_EMPLOYEE => '一般員工',
     ];
 
+    // 三個角色的權限碼：建立 company 端口的 migration（2026_11_27_180000）與 SiteBaselineSeeder
+    // 共用這一份，要調整權限只改這裡，再重跑 baseline seed 覆寫既有角色。
+    private const EMPLOYEE_CODES = [
+        'api.guest.companyProfile',
+        'api.guest.index', 'api.guest.show', 'api.guest.store', 'api.guest.update', 'api.guest.cancel',
+        'api.guest.records', 'api.guest.recordShow', 'api.guest.recordStats',
+    ];
+    private const APPROVER_CODES = [
+        'api.guest.statusChange', 'api.guest.approval', 'api.guest.approvalStatus',
+    ];
+    private const ADMIN_CODES = [
+        'api.guest.companySettingUpdate',
+        'api.guest.employeeIndex', 'api.guest.employeeStore', 'api.guest.employeeUpdate',
+        'api.guest.employeeResetPassword', 'api.guest.employeeDestroy',
+    ];
+
+    /** 公司內身分 → company 端口角色的權限碼（上層身分包含下層的全部權限） */
+    public static function rolePermissionCodes(): array
+    {
+        return [
+            self::TYPE_ADMIN => [...self::EMPLOYEE_CODES, ...self::APPROVER_CODES, ...self::ADMIN_CODES],
+            self::TYPE_APPROVER => [...self::EMPLOYEE_CODES, ...self::APPROVER_CODES],
+            self::TYPE_EMPLOYEE => self::EMPLOYEE_CODES,
+        ];
+    }
+
     protected $connection = 'site_current';
 
     protected $table = 'guest_company_members';
