@@ -121,7 +121,9 @@ class SiteBaselineSeeder extends Seeder
     // 訪客模組公司端口（company）：每家公司（門牌）的帳號登入這個端口，只看得到自己公司的資料
     // （見 App\Api\Guest\Middleware\EnsureGuestCompanyScope）。三個角色對應公司內身分
     // （GuestCompanyMember::ROLE_NAMES），帳號由系統依身分自動指派，名稱不可在後台改；
-    // 權限碼每次 seed 都覆寫成這裡的版本，要調整請改這裡再重跑 seed。
+    // 權限碼每次 seed 都覆寫成 GuestCompanyMember::rolePermissionCodes() 的版本（與建立端口的
+    // migration 共用同一份），要調整請改那裡再重跑 seed。
+    // 一般情況下 site:migrate 已經由 migration 建好端口與角色，這裡負責把權限碼同步成最新。
     // 多站開發環境不論訪客模組是否開通都會建立（沒開通時 API 會被 module:guest 擋下、選單不顯示）；
     // 單站部署包沒帶訪客模組原始碼時（未購買，見 SitePackageService::copyModules）直接略過，
     // 否則這裡引用的類別不存在會讓整支 seeder 中斷。
@@ -136,27 +138,7 @@ class SiteBaselineSeeder extends Seeder
             ['name' => '公司端口', 'admin_only' => false, 'is_enabled' => true, 'requires_login' => true]
         );
 
-        $employee = [
-            'api.guest.companyProfile',
-            'api.guest.index', 'api.guest.show', 'api.guest.store', 'api.guest.update', 'api.guest.cancel',
-            'api.guest.records', 'api.guest.recordShow', 'api.guest.recordStats',
-        ];
-        $approver = array_merge($employee, [
-            'api.guest.statusChange', 'api.guest.approval', 'api.guest.approvalStatus',
-        ]);
-        $admin = array_merge($approver, [
-            'api.guest.companySettingUpdate',
-            'api.guest.employeeIndex', 'api.guest.employeeStore', 'api.guest.employeeUpdate',
-            'api.guest.employeeResetPassword', 'api.guest.employeeDestroy',
-        ]);
-
-        $codesByType = [
-            GuestCompanyMember::TYPE_ADMIN => $admin,
-            GuestCompanyMember::TYPE_APPROVER => $approver,
-            GuestCompanyMember::TYPE_EMPLOYEE => $employee,
-        ];
-
-        foreach ($codesByType as $type => $codes) {
+        foreach (GuestCompanyMember::rolePermissionCodes() as $type => $codes) {
             $role = Role::withTrashed()->firstOrNew([
                 'portal_id' => $portal->id,
                 'name' => GuestCompanyMember::ROLE_NAMES[$type],
