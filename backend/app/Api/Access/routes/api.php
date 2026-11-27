@@ -23,7 +23,7 @@ Route::middleware(['module:access', 'jwt.auth'])->prefix('access')->group(functi
         Route::middleware('permission.api:api.card.destroyCard')->delete('/{id}', [AccessCardController::class, 'destroyCard'])->whereNumber('id');
     });
 
-    Route::prefix('cards')->group(function () {
+    Route::prefix('api')->group(function () {
         Route::middleware('permission.api:api.api.indexApi')->get('/', [AccessApiController::class, 'indexApi']);
         Route::middleware('permission.api:api.api.storeApi')->post('/', [AccessApiController::class, 'storeApi']);
         Route::middleware('permission.api:api.api.updateApi')->put('/{id}', [AccessApiController::class, 'updateApi'])->whereNumber('id');
