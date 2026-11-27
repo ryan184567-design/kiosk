@@ -47,11 +47,11 @@
         <LoadErrorAlert v-if="loadError" class="rpt__notice" :message="loadError" @retry="reload" />
         <!-- 統計卡片 -->
         <div class="rpt__stats">
-          <StatCard icon="fa-solid fa-users" label="來訪總人次" :value="fmt(summary.total)" :trend="summary.total_trend" note="較上期" tone="blue" />
-          <StatCard icon="fa-regular fa-calendar-days" label="預約來訪" :value="fmt(summary.reserved)" :trend="summary.reserved_trend" :note="`占 ${share(summary.reserved)}%`" tone="blue" />
-          <StatCard icon="fa-solid fa-person-walking" label="臨時來訪" :value="fmt(summary.walk_in)" :trend="summary.walk_in_trend" :note="`占 ${share(summary.walk_in)}%`" tone="blue" />
-          <StatCard icon="fa-regular fa-building" label="來訪公司數" :value="fmt(summary.companies)" :trend="summary.companies_trend" note="較上期" tone="blue" />
-          <StatCard icon="fa-regular fa-id-card" label="發證數(臨時卡)" :value="fmt(summary.badges)" :trend="summary.badges_trend" note="較上期" tone="blue" />
+          <StatCard plain line-icon="users" label="來訪總人次" :value="fmt(summary.total)" :trend="summary.total_trend" :compare-note="compareNote(summary.total_trend)" tone="blue" />
+          <StatCard plain line-icon="calendar" label="預約來訪" :value="fmt(summary.reserved)" :trend="summary.reserved_trend" :note="`占 ${share(summary.reserved)}%`" :compare-note="compareNote(summary.reserved_trend)" tone="blue" />
+          <StatCard plain icon="fa-solid fa-person-walking" label="臨時來訪" :value="fmt(summary.walk_in)" :trend="summary.walk_in_trend" :note="`占 ${share(summary.walk_in)}%`" :compare-note="compareNote(summary.walk_in_trend)" tone="blue" />
+          <StatCard plain line-icon="buildings" label="來訪公司數" :value="fmt(summary.companies)" :trend="summary.companies_trend" :compare-note="compareNote(summary.companies_trend)" tone="blue" />
+          <StatCard plain line-icon="id-card" label="發證數(臨時卡)" :value="fmt(summary.badges)" :trend="summary.badges_trend" :compare-note="compareNote(summary.badges_trend)" tone="blue" />
         </div>
         <!-- 圖表 -->
         <div v-loading="loadingOverview" class="rpt__charts">
@@ -74,10 +74,10 @@
             <h3 class="rpt__title">訪客統計明細</h3>
             <div class="rpt__actions">
               <el-button :loading="exporting === 'excel'" @click="handleExport('excel')">
-                <i class="fa-regular fa-file-excel rpt__icon rpt__icon--green" aria-hidden="true"></i>匯出 Excel
+                <FileTypeIcon type="excel" class="rpt__icon" />匯出 Excel
               </el-button>
               <el-button :loading="exporting === 'pdf'" @click="handleExport('pdf')">
-                <i class="fa-regular fa-file-pdf rpt__icon rpt__icon--red" aria-hidden="true"></i>匯出 PDF
+                <FileTypeIcon type="pdf" class="rpt__icon" />匯出 PDF
               </el-button>            </div>
           </div>
           <el-table v-loading="loadingDaily" :data="daily" empty-text="沒有資料">
@@ -119,6 +119,7 @@ Description: 統計報表頁(訪客統計總覽：統計卡片、趨勢折線、
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { exportReportDaily, fetchDoorplates, fetchReportDaily, fetchReportOverview } from '../../api/guest';
+import FileTypeIcon from './components/FileTypeIcon.vue';
 import FloorBars from './components/FloorBars.vue';
 import LoadErrorAlert from './components/LoadErrorAlert.vue';
 import ReasonDonut from './components/ReasonDonut.vue';
@@ -178,6 +179,11 @@ const fmt = (n) => Number(n || 0).toLocaleString();
 function share(count){
   return summary.total === 0 ? '0.0' : ((count / summary.total) * 100).toFixed(1);
 }
+// 卡片百分比下方的文字。上一期是 0 時後端的成長率是 null（算不出百分比）；資料還沒載到時不能說「上期無資料」。
+const summaryLoaded = ref(false);
+function compareNote(trendValue){
+  return summaryLoaded.value && trendValue === null ? '上期無資料' : '較上期';
+}
 // 目前套用的條件 → API 參數(總覽、明細、匯出共用)。
 function queryParams(){
   return{
@@ -214,6 +220,7 @@ async function loadOverview(){
     return;
   }
   Object.assign(summary, result.data.summary);
+  summaryLoaded.value = true;
   trend.value = result.data.trend || [];
   reasons.value = result.data.reasons || [];
   floors.value = result.data.floors || [];
@@ -356,12 +363,6 @@ onMounted(() => {
   color: var(--el-text-color-secondary);
   font-size: 13px;
 }
-.rpt__icon--green{
-  color: #16a34a;
-}
-.rpt__icon--red{
-  color: #e5484d;
-}
 .rpt__stats{
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -408,6 +409,17 @@ onMounted(() => {
 }
 .rpt__detail-head .rpt__title{
   margin: 0;
+}
+/* 明細表頭的淺藍底色與深色粗字，對應設計稿。 */
+.rpt__detail :deep(.el-table){
+  --el-table-header-bg-color: #eaf1f8;
+  --el-table-header-text-color: #1f2937;
+}
+.rpt__detail :deep(.el-table__header th.el-table__cell:first-child){
+  border-radius: 6px 0 0 6px;
+}
+.rpt__detail :deep(.el-table__header th.el-table__cell:last-of-type){
+  border-radius: 0 6px 6px 0;
 }
 .rpt__actions{
   display: flex;

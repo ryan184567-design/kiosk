@@ -10,7 +10,7 @@ Author: Callum
 Date: 2026-11-26
 Description: 通用的 Chart.js 圖表外框：依傳入的 type、data、options 建立圖表，資料變了就更新，離開頁面時銷毀。
 ***************************************** */
-// data、options 由頁面用 computed 組好再傳進來（每次都是新的物件、陣列用 map 產生），這裡只負責建立與更新。
+// data、options 由頁面用 computed 組好再傳進來(每次都是新的物件、陣列用 map 產生)，這裡只負責建立與更新。
 // 不要傳 Vue 的 reactive 陣列進來：Chart.js 會改寫資料陣列的 push 等方法來監聽變動，跟 Vue 的 Proxy 會互相干擾。
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Chart } from '../../../charts/chartSetup';
@@ -20,7 +20,7 @@ const props = defineProps({
   data: { type: Object, required: true },
   options: { type: Object, default: () => ({}) },
   ariaLabel: { type: String, default: '' },
-  // 高度：md 280px、sm 240px（用 class 決定，嚴格 CSP 不能用 inline style）。
+  // 高度：md 280px、sm 240px(用 class 決定，嚴格 CSP 不能用 inline style)。
   size: { type: String, default: 'md' },
 });
 const canvasRef = ref(null);

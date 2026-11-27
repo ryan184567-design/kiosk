@@ -32,6 +32,13 @@
   font-size: 13px;
   color: #6b7280;
 }
+/* 整列可點的表格（棟別列表：點一列查看樓層） */
+.ds__table--clickable :deep(.el-table__row) {
+  cursor: pointer;
+}
+.ds__table--clickable :deep(.el-table__row > td.el-table__cell) {
+  transition: background-color var(--app-transition-duration) var(--app-transition-timing);
+}
 .ds__notice {
   margin-bottom: 14px;
 }
