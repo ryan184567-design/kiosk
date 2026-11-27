@@ -37,7 +37,8 @@ return [
     // 單站部署包輸出（CLI site:package 與主站後台 API 共用，見 6.8）
     'packaging' => [
         'site_not_ready' => '此子站尚未建置完成（provision_status 需為 ready），無法輸出部署包。',
-        'output_exists' => '輸出目錄已存在，避免覆蓋既有部署包：:path',
+        'unmet_dependencies' => '以下已開通模塊的依賴模塊尚未開通（或已全域下架），無法輸出部署包：:details（請先在此子站開通相依模塊）',
+        'output_exists' =>'輸出目錄已存在，避免覆蓋既有部署包：:path',
         'invalid_output' => '輸出資料夾只能是英數、底線、減號、點與斜線組成的相對路徑。',
         'env_hint' => '部署包已附可直接使用的 .env（APP_KEY／JWT secret 自動產生），現場只需依實際狀況調整 DB_HOST／DB_PORT／DB_USERNAME／DB_PASSWORD／APP_URL，並先執行 composer install（部署包不含 vendor，見 6.8 第 3 點）。',
         'deploy_guide_hint' => '部署包根目錄另有 DEPLOY.md，列出完整現場部署步驟（composer install、目錄權限、migrate、Tier 3 的 vue:build、快取指令），見 6.8 第 8 點。',

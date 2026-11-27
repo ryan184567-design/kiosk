@@ -138,6 +138,42 @@ class ModuleRegistryService
     // 也是 copyModules()／provisionMenusForSite() 共同的輸入來源。
     public function enabledCodesForSite(Site $site): array
     {
+        return $this->dependencyClosure($this->directlyEnabledCodesForSite($site));
+    }
+
+    // 檢查這個站每個「實際開通」的模組，其遞移依賴是否也都實際開通
+    // （核心模組，或全域上架且該站已開通未停用）。回傳
+    // [模組代碼 => [未滿足的依賴代碼...]]，全部滿足時回傳空陣列。
+    //
+    // 為什麼需要：enabledCodesForSite() 會把依賴靜默補進集合，但執行期
+    // ModuleAccessService::isEnabledForSite() 只認 site_modules 實際紀錄
+    // 與全域上架狀態——依賴若被全域下架，或模組在宣告 depends 之前就已
+    // 開通（舊站沒有依賴的 site_modules 紀錄），部署包會帶著依賴的原始碼
+    // 但主站後台看到的開通狀態與部署包不一致。匯出前用這支擋下，要求
+    // 管理員先把依賴開通，而不是默默輸出一包狀態不明的東西。
+    public function unmetDependenciesForSite(Site $site): array
+    {
+        $direct = $this->directlyEnabledCodesForSite($site);
+        $satisfied = array_flip($direct);
+        $unmet = [];
+
+        foreach ($direct as $code) {
+            $missing = array_values(array_filter(
+                array_diff($this->dependencyClosure([$code]), [$code]),
+                fn (string $dependency) => ! isset($satisfied[$dependency])
+            ));
+
+            if ($missing !== []) {
+                $unmet[$code] = $missing;
+            }
+        }
+
+        return $unmet;
+    }
+
+    // 核心模組 + 全域上架且該站已開通未停用的模組（不含依賴展開）。
+    private function directlyEnabledCodesForSite(Site $site): array
+    {
         $manifests = $this->scanManifests();
         $globallyEnabled = Module::query()->pluck('is_enabled', 'code');
         $codes = [];
@@ -168,7 +204,7 @@ class ModuleRegistryService
             }
         }
 
-        return $this->dependencyClosure($codes);
+        return $codes;
     }
 
     // 依模組宣告的 menus 逐筆 upsert 進「目前 site_current 連線」的選單表，
