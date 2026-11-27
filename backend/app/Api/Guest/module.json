@@ -4,7 +4,7 @@
     "description": "訪客的登記、預約、審核、紀錄以及報表功能",
     "is_core": false,
     "sort": 99,
-    "depends": [],
+    "depends": ["access"],
     "menus": [
         {
             "portal": "admin",

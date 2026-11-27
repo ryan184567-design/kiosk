@@ -134,6 +134,21 @@ class SitePackageService
             throw new InvalidArgumentException(__('hq.packaging.site_not_ready'));
         }
 
+        // 依賴檢查：已開通模組的依賴必須也實際開通（見
+        // ModuleRegistryService::unmetDependenciesForSite），否則部署包的
+        // 模組清單跟主站後台的開通狀態對不上，現場功能可能被擋或缺原始碼。
+        $unmet = $this->moduleRegistry->unmetDependenciesForSite($site);
+
+        if ($unmet !== []) {
+            $details = implode('；', array_map(
+                fn (string $code, array $missing) => "{$code} → ".implode('、', $missing),
+                array_keys($unmet),
+                $unmet
+            ));
+
+            throw new InvalidArgumentException(__('hq.packaging.unmet_dependencies', ['details' => $details]));
+        }
+
         if (File::isDirectory($output)) {
             throw new InvalidArgumentException(__('hq.packaging.output_exists', ['path' => $output]));
         }
