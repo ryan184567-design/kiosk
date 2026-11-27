@@ -14,6 +14,9 @@ class AccessFloorService
         $this->accessService = $accessService;
     }
 
+    /**
+     * 電梯裝置標籤列表
+     */
     public function elevatorList(){
         $elevatorFloors = [];
         foreach ($this->GetElevatorFloorsByDeviceId() as $deviceId => $floorLabels) {
@@ -26,6 +29,9 @@ class AccessFloorService
         return $elevatorFloors;
     }
 
+    /**
+     * 樓層門禁列表
+     */
     public function getFloorAccessList()
     {
         $devices = (array) $this->accessService->GetDevice();
@@ -47,7 +53,7 @@ class AccessFloorService
     // 新增訪客樓層門禁權限設定
     public function addFloorAccess(int $floor, string $access_control_list, string $floor_list, string $remark)
     {
-        if ($this->floor_access_taken($floor)) {
+        if ($this->floorAccessTaken($floor)) {
             throw new RuntimeException(__('api.access.cannot_add_access_floor'), 404);
         }
 
@@ -67,7 +73,7 @@ class AccessFloorService
     }
 
     // 樓層重複檢查(編輯時排除自己)；GetFloorAccess() 依樓層只取第一筆，同樓層多筆設定會讓後面的設定失效
-    protected function floor_access_taken(int $floor, $exceptId = null)
+    protected function floorAccessTaken(int $floor, $exceptId = null)
     {
         $query = AccessFloor::query()->where('floor', $floor);
         if ($exceptId) {
@@ -123,7 +129,7 @@ class AccessFloorService
             throw new RuntimeException(__('api.access.access_floor_not_found'), 404);
         }
 
-        if ($this->floor_access_taken($floor, $access->id)) {
+        if ($this->floorAccessTaken($floor, $access->id)) {
             throw new RuntimeException(__('api.access.cannot_edit_access_floor'), 404);
         }
 

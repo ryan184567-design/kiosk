@@ -62,9 +62,9 @@ class AccessCardController extends BaseApiController
      * @api-portal admin
      * @api-description
      * 新增可使用的訪客卡片
-     * 新增後狀態固定為 0（未使用）  
+     * 新增後狀態固定為 0（未使用）
      * @api-dict access_card_status 0:未使用，1:使用中
-     * @api-request-field card_number int 感應卡號     
+     * @api-request-field card_number int 感應卡號
      * @api-request-example {"card_number": 1211123200}
      * @api-response-field data.id int 感應卡ID
      * @api-response-field data.card_number int 訪客卡號
@@ -75,7 +75,7 @@ class AccessCardController extends BaseApiController
     public function storeCard(Request $request, AccessCardService $access)
     {
         $data = $this->validateInput($request, [
-            'card_number' => ['required', 'int'],            
+            'card_number' => ['required', 'string', 'regex:/^\d{1,10}$/'],
         ]);
 
         $result = $access->add($data['card_number']);
@@ -91,10 +91,10 @@ class AccessCardController extends BaseApiController
      * @api-portal admin
      * @api-description
      * 修改訪客卡片，修改狀態與啟用日期
-     * 更改為未使用時，啟用日期為null  
+     * 更改為未使用時，啟用日期為null
      * @api-dict access_card_status 0:未使用，1:使用中
-     * @api-request-field status int 必填，使用狀態    
-     * @api-request-field reserve_date string 啟用日期     
+     * @api-request-field status int 必填，使用狀態
+     * @api-request-field reserve_date string 啟用日期
      * @api-request-example {"status": 1, "reserve_date": "2026-11-10"}
      * @api-response-field data.id int 感應卡ID
      * @api-response-field data.card_number int 訪客卡號
@@ -124,7 +124,7 @@ class AccessCardController extends BaseApiController
      * @api-tag AccessCard
      * @api-summary 刪除訪客卡
      * @api-portal admin
-     * @api-description 刪除訪客卡     
+     * @api-description 刪除訪客卡
      * @api-no-request-body
      * @api-response-empty
      */

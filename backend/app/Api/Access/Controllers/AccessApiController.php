@@ -134,7 +134,7 @@ class AccessApiController extends BaseApiController
      */
     public function destroyApi(string $id, AccessApiService $access)
     {
-        $access->dalete($id);
+        $access->delete($id);
         //
         return $this->success();
     }
